@@ -5,7 +5,6 @@ import com.mohaemukzip.mohaemukzip_be.domain.ingredient.dto.IngredientRequestDTO
 import com.mohaemukzip.mohaemukzip_be.domain.ingredient.dto.IngredientResponseDTO;
 import com.mohaemukzip.mohaemukzip_be.domain.ingredient.service.IngredientCommandService;
 import com.mohaemukzip.mohaemukzip_be.domain.ingredient.service.IngredientQueryService;
-import com.mohaemukzip.mohaemukzip_be.domain.member.entity.Member;
 import com.mohaemukzip.mohaemukzip_be.global.response.ApiResponse;
 import com.mohaemukzip.mohaemukzip_be.global.security.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
@@ -33,9 +32,9 @@ public class FridgeController {
             @AuthenticationPrincipal CustomUserDetails customUserDetails,
             @RequestBody @Valid IngredientRequestDTO.AddFridge request
     ) {
-        Member member = customUserDetails.getMember();
+        Long memberId = customUserDetails.getMember().getId();
 
-        IngredientResponseDTO.AddFridgeResult result = ingredientCommandService.addFridgeIngredient(member.getId(), request);
+        IngredientResponseDTO.AddFridgeResult result = ingredientCommandService.addFridgeIngredient(memberId, request);
 
         return ApiResponse.onSuccess(result);
     }
@@ -45,9 +44,23 @@ public class FridgeController {
     public ApiResponse<IngredientResponseDTO.FridgeIngredientList> getMyFridgeIngredients(
             @AuthenticationPrincipal CustomUserDetails customUserDetails
     ) {
-        Member member = customUserDetails.getMember();
+        Long memberId = customUserDetails.getMember().getId();
 
-        IngredientResponseDTO.FridgeIngredientList result = ingredientQueryService.getMyFridgeIngredients(member.getId());
+        IngredientResponseDTO.FridgeIngredientList result = ingredientQueryService.getMyFridgeIngredients(memberId);
+
+        return ApiResponse.onSuccess(result);
+    }
+
+    @Operation(summary = "냉장고 재료 삭제")
+    @DeleteMapping("/ingredients/{ingredientId}")
+    public ApiResponse<IngredientResponseDTO.DeleteFridgeIngredient> deleteFridgeIngredient(
+            @AuthenticationPrincipal CustomUserDetails customUserDetails,
+            @PathVariable Long ingredientId
+    ) {
+        Long memberId = customUserDetails.getMember().getId();
+
+        IngredientResponseDTO.DeleteFridgeIngredient result =
+                ingredientCommandService.deleteIngredient(ingredientId, memberId);
 
         return ApiResponse.onSuccess(result);
     }

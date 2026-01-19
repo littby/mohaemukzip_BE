@@ -1,19 +1,25 @@
 package com.mohaemukzip.mohaemukzip_be.domain.ingredient.entity;
 
-import com.mohaemukzip.mohaemukzip_be.domain.ingredient.entity.enums.StorageType;
 import com.mohaemukzip.mohaemukzip_be.domain.member.entity.Member;
 import com.mohaemukzip.mohaemukzip_be.global.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.time.LocalDate;
 
 @Entity
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Getter
-@Table(name = "member_favorites")
+@Table(
+        name = "member_favorites",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_member_favorite_member_ingredient",
+                        columnNames = {"member_id", "ingredient_id"}
+                )
+        }
+)
 public class MemberFavorite extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

@@ -12,4 +12,9 @@ public interface IngredientQueryService {
 
     // 냉장고 조회
     IngredientResponseDTO.FridgeIngredientList getMyFridgeIngredients(Long memberId);
+
+    //즐겨찾기 조회
+    IngredientResponseDTO.FavoriteList getFavoriteList(Long memberId);
+
+
 }
