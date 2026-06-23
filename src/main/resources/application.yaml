@@ -46,5 +46,3 @@ gemini:
 youtube:
   api:
     base-url: https://www.googleapis.com/youtube/v3
-transcript:
-  script-path: /app/scripts/get_youtube_transcript.py

@@ -2,6 +2,7 @@ package com.mohaemukzip.mohaemukzip_be.domain.member.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.mohaemukzip.mohaemukzip_be.domain.member.entity.Member;
+import com.mohaemukzip.mohaemukzip_be.domain.member.entity.enums.LoginType;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -13,7 +14,8 @@ public class AuthResponseDTO {
             String accessToken,
             String refreshToken,
             boolean isNewUser,
-            boolean isInactive
+            boolean isInactive,
+            LoginType loginType
     ) {
         public static GetUserDTO of(Member member, String accessToken, String refreshToken , boolean isNewUser) {
             return new GetUserDTO(
@@ -21,7 +23,8 @@ public class AuthResponseDTO {
                     accessToken,
                     refreshToken,
                     isNewUser,
-                    member.isInactive()
+                    member.isInactive(),
+                    member.getLoginType()
             );
         }
     }
@@ -58,7 +61,7 @@ public class AuthResponseDTO {
     @Getter
     @NoArgsConstructor
     public static class GetKakaoUserInfoDTO {
-        private Long id;
+        private String id;
 
         @JsonProperty("kakao_account")
         private KakaoAccount kakaoAccount;
@@ -72,5 +75,12 @@ public class AuthResponseDTO {
         public static class Profile {
             private String nickname;
         }
+    }
+
+    @Getter
+    @NoArgsConstructor
+    public static class GetAppleUserInfoDTO {
+        private String sub;    // 애플 유저 ID
+        private String email;  // 이메일 (최초 로그인 시에만 옴)
     }
 }

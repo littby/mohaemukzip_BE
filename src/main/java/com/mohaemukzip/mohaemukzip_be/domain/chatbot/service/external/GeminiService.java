@@ -34,14 +34,12 @@ public class GeminiService {
         this.objectMapper = objectMapper;
     }
 
-    public String generateChatResponse(String systemPrompt, String userPrompt) {
+    public String generateChatResponse(String systemPrompt, List<GeminiRequestDTO.Content> contents) {
         GeminiRequestDTO request = GeminiRequestDTO.builder()
                 .systemInstruction(GeminiRequestDTO.SystemInstruction.builder()
                         .parts(List.of(GeminiRequestDTO.Part.builder().text(systemPrompt).build()))
                         .build())
-                .contents(List.of(GeminiRequestDTO.Content.builder()
-                        .parts(List.of(GeminiRequestDTO.Part.builder().text(userPrompt).build()))
-                        .build()))
+                .contents(contents)
                 .build();
 
         try {

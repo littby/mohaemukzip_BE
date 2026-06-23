@@ -64,4 +64,19 @@ public class FridgeController {
 
         return ApiResponse.onSuccess(result);
     }
+
+    @Operation(summary = "냉장고 재료 수정")
+    @PutMapping("/ingredients/{memberIngredientId}")
+    public ApiResponse<IngredientResponseDTO.UpdateFridgeResult> updateFridgeIngredient(
+            @AuthenticationPrincipal CustomUserDetails customUserDetails,
+            @PathVariable Long memberIngredientId,
+            @RequestBody @Valid IngredientRequestDTO.UpdateFridge request
+    ) {
+        Long memberId = customUserDetails.getMember().getId();
+
+        IngredientResponseDTO.UpdateFridgeResult result =
+                ingredientCommandService.updateFridgeIngredient(memberId, memberIngredientId, request);
+
+        return ApiResponse.onSuccess(result);
+    }
 }

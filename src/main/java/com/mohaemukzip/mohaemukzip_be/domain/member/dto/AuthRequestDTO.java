@@ -65,4 +65,10 @@ public class AuthRequestDTO {
             @NotBlank(message = "카카오 액세스 토큰은 필수입니다.")
             String kakaoAccessToken
     ) {}
+
+    public record AppleLoginRequest(
+            @Schema(description = "애플 identity token")
+            @NotBlank(message = "애플 identity token은 필수입니다.")
+            String identityToken
+    ) {}
 }

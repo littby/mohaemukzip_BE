@@ -105,7 +105,7 @@ jobs:
             
             git fetch origin
             git reset --hard origin/main
-
+            echo "${{ secrets.APPLICATION }}" > .env
             export DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
             
             docker-compose -f compose.yaml -f compose.prod.yaml down || true

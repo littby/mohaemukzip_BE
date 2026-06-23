@@ -34,6 +34,7 @@ public class SecurityConfig {
             "/auth/reissue",
             "/auth/check-loginid",
             "/auth/login/kakao",
+            "/auth/login/apple",
             "/auth/terms",
             "/swagger-ui/**",
             "/v3/api-docs/**",

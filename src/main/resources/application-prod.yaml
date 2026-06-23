@@ -57,3 +57,13 @@ youtube:
 
 transcript:
   proxy-url: ${TRANSCRIPT_PROXY_URL:}
+
+kakao:
+  api:
+    rest-api-key: ${KAKAO_REST_API_KEY}
+
+apple:
+  client-id: temp
+  team-id: temp
+  key-id: temp
+  private-key: temp

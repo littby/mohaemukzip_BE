@@ -50,16 +50,25 @@ public class AuthController {
 
         return ApiResponse.onSuccess(response);
     }
+    @Operation(summary = "로그인 (카카오)")
+    @PostMapping("/login/kakao")
+    public ApiResponse<AuthResponseDTO.GetUserDTO> kakaoLogin(
+            @Valid @RequestBody AuthRequestDTO.KakaoLoginRequest request) {
 
-//    @Operation(summary = "로그인 (카카오)")
-//    @PostMapping("/login/kakao")
-//    public ApiResponse<AuthResponseDTO.GetUserDTO> kakaoLogin(
-//            @Valid @RequestBody AuthRequestDTO.KakaoLoginRequest request) {
-//
-//        AuthResponseDTO.GetUserDTO response =  authCommandService.kakaoLogin(request);
-//
-//        return ApiResponse.onSuccess(response);
-//    }
+        AuthResponseDTO.GetUserDTO response =  authCommandService.kakaoLogin(request);
+
+        return ApiResponse.onSuccess(response);
+    }
+
+    @Operation(summary = "로그인 (애플)")
+    @PostMapping("/login/apple")
+    public ApiResponse<AuthResponseDTO.GetUserDTO> appleLogin(
+            @Valid @RequestBody AuthRequestDTO.AppleLoginRequest request) {
+
+        AuthResponseDTO.GetUserDTO response = authCommandService.appleLogin(request);
+
+        return ApiResponse.onSuccess(response);
+    }
 
     @Operation(summary = "토큰 재발급")
     @PostMapping("/reissue")

@@ -1,9 +1,10 @@
 package com.mohaemukzip.mohaemukzip_be.domain.chatbot.service.processor;
 
+import com.mohaemukzip.mohaemukzip_be.domain.chatbot.dto.RedisChatMessage;
 import com.mohaemukzip.mohaemukzip_be.domain.chatbot.dto.response.ChatProcessorResult;
 
+import java.util.List;
+
 public interface ChatProcessor {
-    String analyzeIntent(String userMessage);
-    // ChatRoom 엔티티 제거 -> memberId로 식별
-    ChatProcessorResult process(Long memberId, String userMessage, String intent);
+    ChatProcessorResult process(Long memberId, String userMessage, List<RedisChatMessage> history);
 }

@@ -1,6 +1,6 @@
 services:
   mohaemukzip-api:
-    image: mohaemukzip/mohaemukzip-api:latest
+    image: ooat/mohaemukzip-api:latest
     expose:
       - "8080"
     restart: always

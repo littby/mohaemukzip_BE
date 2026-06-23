@@ -21,6 +21,7 @@ public class GeminiRequestDTO {
     @Getter
     @Builder
     public static class Content {
+        private String role; // 추가: user 또는 model
         private List<Part> parts;
     }
 

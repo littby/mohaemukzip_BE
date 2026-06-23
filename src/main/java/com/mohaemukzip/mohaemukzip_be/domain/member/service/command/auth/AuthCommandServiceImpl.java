@@ -12,8 +12,10 @@ import com.mohaemukzip.mohaemukzip_be.global.exception.BusinessException;
 import com.mohaemukzip.mohaemukzip_be.global.jwt.JwtProvider;
 import com.mohaemukzip.mohaemukzip_be.global.jwt.TokenBlacklistService;
 import com.mohaemukzip.mohaemukzip_be.global.response.code.status.ErrorStatus;
+import com.mohaemukzip.mohaemukzip_be.global.service.ApplePublicKeyService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -38,6 +40,7 @@ public class AuthCommandServiceImpl implements AuthCommandService {
     private final TermCommandService termCommandService;
     private final WebClient webClient;
     private final TokenBlacklistService tokenBlacklistService;
+    private final ApplePublicKeyService applePublicKeyService;
 
     private static final String KAKAO_USER_INFO_URI = "https://kapi.kakao.com/v2/user/me";
     private static final String REFRESH_TOKEN_PREFIX = "RT:";
@@ -81,22 +84,66 @@ public class AuthCommandServiceImpl implements AuthCommandService {
     public AuthResponseDTO.GetUserDTO kakaoLogin(AuthRequestDTO.KakaoLoginRequest kakaoLoginRequest){
         AuthResponseDTO.GetKakaoUserInfoDTO kakaoUserInfo = getKakaoUserInfo(kakaoLoginRequest.kakaoAccessToken());
 
+        String kakaoId = kakaoUserInfo.getId();
         String nickname = extractNickname(kakaoUserInfo);
 
         AtomicBoolean isNewMember = new AtomicBoolean(false);
 
-        Member member = memberRepository.findByOauthId(kakaoUserInfo.getId())
-                .orElseGet(() -> {
-                    isNewMember.set(true);
-                    return createKakaoMember(kakaoUserInfo.getId(), nickname);
-                });
+
+        Member member;
+        try {
+            member = memberRepository.findByLoginTypeAndOauthId(LoginType.KAKAO, kakaoId)
+                    .orElseGet(() -> {
+                        isNewMember.set(true);
+                        return createKakaoMember(kakaoId, nickname);
+                    });
+        } catch (DataIntegrityViolationException e) {
+            member = memberRepository.findByLoginTypeAndOauthId(LoginType.KAKAO, kakaoId)
+                    .orElseThrow(() -> new BusinessException(ErrorStatus.KAKAO_API_ERROR));
+        }
 
         if (member.isInactive()) {
-            log.warn("Withdrawn member attempted kakao login - memberId: {}", member.getId());
             throw new BusinessException(ErrorStatus.ALREADY_WITHDRAWN_MEMBER);
         }
 
         return generateAndSaveTokens(member, isNewMember.get());
+    }
+
+    @Transactional
+    public AuthResponseDTO.GetUserDTO appleLogin(AuthRequestDTO.AppleLoginRequest appleLoginRequest) {
+
+        String appleId = applePublicKeyService.extractSubFromIdentityToken(appleLoginRequest.identityToken());
+        AtomicBoolean isNewMember = new AtomicBoolean(false);
+
+        Member member;
+        try {
+            member = memberRepository.findByLoginTypeAndOauthId(LoginType.APPLE, appleId)
+                    .orElseGet(() -> {
+                        isNewMember.set(true);
+                        return createAppleMember(appleId);
+                    });
+        } catch (DataIntegrityViolationException e) {
+
+            member = memberRepository.findByLoginTypeAndOauthId(LoginType.APPLE, appleId)
+                    .orElseThrow(() -> new BusinessException(ErrorStatus.KAKAO_API_ERROR));
+        }
+
+        if (member.isInactive()) {
+            throw new BusinessException(ErrorStatus.ALREADY_WITHDRAWN_MEMBER);
+        }
+
+        return generateAndSaveTokens(member, isNewMember.get());
+    }
+
+    private Member createAppleMember(String appleId) {
+        Member newMember = Member.builder()
+                .oauthId(appleId)
+                .nickname("애플 사용자_" + (appleId.length() >= 6 ? appleId.substring(0, 6) : appleId))
+                .loginType(LoginType.APPLE)
+                .role(Role.ROLE_USER)
+                .score(0)
+                .build();
+        return memberRepository.save(newMember);
     }
 
     private String extractNickname(AuthResponseDTO.GetKakaoUserInfoDTO kakaoUserInfo) {
@@ -109,7 +156,7 @@ public class AuthCommandServiceImpl implements AuthCommandService {
         return "카카오 사용자_" + kakaoUserInfo.getId();
     }
 
-    private Member createKakaoMember(Long kakaoId, String nickname) {
+    private Member createKakaoMember(String kakaoId, String nickname) {
         Member newMember = Member.builder()
                 .oauthId(kakaoId)
                 .nickname(nickname)

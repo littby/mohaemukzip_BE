@@ -208,4 +208,11 @@ public class IngredientResponseDTO {
                     .build();
         }
     }
+
+    // 11. 냉장고 재료 수정
+    @Builder
+    public record UpdateFridgeResult(
+            Long memberIngredientId
+    ) {
+    }
 }

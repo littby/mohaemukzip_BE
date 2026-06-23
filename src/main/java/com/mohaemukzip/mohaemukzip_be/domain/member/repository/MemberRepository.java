@@ -1,6 +1,7 @@
 package com.mohaemukzip.mohaemukzip_be.domain.member.repository;
 
 import com.mohaemukzip.mohaemukzip_be.domain.member.entity.Member;
+import com.mohaemukzip.mohaemukzip_be.domain.member.entity.enums.LoginType;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -11,8 +12,9 @@ import java.util.Optional;
 
 public interface MemberRepository extends JpaRepository<Member,Long> {
     Optional<Member> findById(Long id);
-    Optional<Member> findByOauthId(Long oauthId);
-    Boolean existsByOauthId(Long oauthId);
+    Optional<Member> findByOauthId(String oauthId);
+    Optional<Member> findByLoginTypeAndOauthId(LoginType loginType, String oauthId);
+    Boolean existsByOauthId(String oauthId);
     Optional<Member> findByLoginId(String loginId);
     Boolean existsByLoginId(String loginId);
 

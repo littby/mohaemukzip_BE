@@ -76,4 +76,11 @@ public class MemberIngredient extends BaseEntity {
             this.expireDate = newExpireDate;
         }
     }
+
+    // 재료 수정
+    public void update(StorageType storageType, LocalDate expireDate, Double weight) {
+        this.storageType = storageType;
+        this.expireDate = expireDate;
+        this.weight = weight;
+    }
 }

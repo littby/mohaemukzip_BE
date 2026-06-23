@@ -20,10 +20,11 @@ import com.mohaemukzip.mohaemukzip_be.domain.recipe.converter.RecipeIngredientCo
 import com.mohaemukzip.mohaemukzip_be.domain.recipe.converter.RecipeStepConverter;
 import com.mohaemukzip.mohaemukzip_be.domain.recipe.repository.*;
 import com.mohaemukzip.mohaemukzip_be.domain.recipe.service.crawler.RecipeCrawler;
+import com.mohaemukzip.mohaemukzip_be.global.client.transcript.TranscriptClient;
+import com.mohaemukzip.mohaemukzip_be.global.client.transcript.dto.TranscriptSegment;
 import com.mohaemukzip.mohaemukzip_be.global.exception.BusinessException;
 import com.mohaemukzip.mohaemukzip_be.global.response.code.status.ErrorStatus;
 import com.mohaemukzip.mohaemukzip_be.global.service.LevelService;
-import com.mohaemukzip.mohaemukzip_be.global.service.PythonTranscriptExecutor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -62,7 +63,7 @@ public class RecipeCommandServiceImpl implements RecipeCommandService {
     private final SummaryRepository summaryRepository;
     private final MemberRecipeRepository memberRecipeRepository;
     private final LevelService levelService;
-    private final PythonTranscriptExecutor transcriptExecutor;
+    private final TranscriptClient transcriptClient;
 
     private final RecipeConverter recipeConverter;
     private final RecipeIngredientConverter recipeIngredientConverter;
@@ -113,16 +114,15 @@ public class RecipeCommandServiceImpl implements RecipeCommandService {
         Recipe recipe = recipeRepository.findById(recipeId)
                 .orElseThrow(() -> new BusinessException(ErrorStatus.RECIPE_NOT_FOUND));
 
-        // 3자막 추출 (Python)
-        String transcriptJson =
-                transcriptExecutor.fetchTranscriptJson(recipe.getVideoId());
+        // 3자막 추출 (RapidAPI 클라이언트 사용)
+        List<TranscriptSegment> transcripts = transcriptClient.fetchTranscript(recipe.getVideoId());
 
         // Summary 생성
         Summary summary = createSummaryWithRaceConditionHandling(recipe);
 
         // Gemini → step draft
         List<GeminiResponseConverter.StepDraft> steps =
-                generateStepsFromGemini(recipe.getTitle(), transcriptJson);
+                generateStepsFromGemini(recipe.getTitle(), transcripts);
 
         //  Step 저장
         List<RecipeStep> entities = recipeStepConverter.toEntities(summary, steps);
@@ -299,8 +299,8 @@ public class RecipeCommandServiceImpl implements RecipeCommandService {
     /**
      * Gemini API를 통해 레시피 단계 생성
      */
-    private List<GeminiResponseConverter.StepDraft> generateStepsFromGemini(String recipeTitle, String transcriptJson) {
-        String prompt = geminiPromptBuilder.buildRecipeStepPrompt(recipeTitle, transcriptJson);
+    private List<GeminiResponseConverter.StepDraft> generateStepsFromGemini(String recipeTitle, List<TranscriptSegment> transcripts) {
+        String prompt = geminiPromptBuilder.buildRecipeStepPrompt(recipeTitle, transcripts);
         String responseBody = callGeminiApi(prompt);
         return geminiResponseConverter.convertToStepDrafts(responseBody, MAX_RECIPE_STEPS);
     }

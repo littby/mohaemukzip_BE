@@ -17,4 +17,11 @@ public interface IngredientCommandService {
     //재료 요청하기
     void createIngredientRequest(Long memberId, IngredientRequestDTO.IngredientReq request);
 
+    // 냉장고 재료 수정
+    IngredientResponseDTO.UpdateFridgeResult updateFridgeIngredient(
+            Long memberId,
+            Long memberIngredientId,
+            IngredientRequestDTO.UpdateFridge request
+    );
+
 }

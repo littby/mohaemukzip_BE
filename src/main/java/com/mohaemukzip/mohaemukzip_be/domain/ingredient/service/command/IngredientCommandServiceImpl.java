@@ -141,4 +141,38 @@ public class IngredientCommandServiceImpl implements IngredientCommandService {
 
         ingredientRequestRepository.save(newRequest);
     }
+
+    //냉장고 재료 수정
+    @Override
+    @Transactional
+    public IngredientResponseDTO.UpdateFridgeResult updateFridgeIngredient(
+            Long memberId,
+            Long memberIngredientId,
+            IngredientRequestDTO.UpdateFridge request
+    ) {
+
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new BusinessException(ErrorStatus.MEMBER_NOT_FOUND));
+
+
+        MemberIngredient memberIngredient = memberIngredientRepository.findById(memberIngredientId)
+                .orElseThrow(() -> new BusinessException(ErrorStatus.MEMBER_INGREDIENT_NOT_FOUND));
+
+        // 본인의 재료인지 확인
+        if (!memberIngredient.getMember().getId().equals(member.getId())) {
+            throw new BusinessException(ErrorStatus.MEMBER_FORBIDDEN);
+        }
+
+        memberIngredient.update(
+                request.getStorageType(),
+                request.getExpireDate(),
+                request.getWeight()
+        );
+
+
+        return IngredientResponseDTO.UpdateFridgeResult.builder()
+                .memberIngredientId(memberIngredient.getId())
+                .build();
+    }
+
 }

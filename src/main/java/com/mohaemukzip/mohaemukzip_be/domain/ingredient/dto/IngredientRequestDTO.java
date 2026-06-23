@@ -31,4 +31,20 @@ public class IngredientRequestDTO {
         @NotBlank(message = "재료 이름을 입력해주세요.")
         private String ingredientName;
     }
+
+    //냉장고 재료 수정
+    @Getter
+    @Builder
+    public static class UpdateFridge {
+        @NotNull(message = "보관장소는 필수입니다.")
+        private StorageType storageType;
+
+        @NotNull(message = "소비기한은 필수입니다.")
+        private LocalDate expireDate;
+
+        @NotNull(message = "중량은 필수입니다.")
+        @Positive(message = "중량은 0보다 커야 합니다.")
+        private Double weight;
+    }
+
 }
