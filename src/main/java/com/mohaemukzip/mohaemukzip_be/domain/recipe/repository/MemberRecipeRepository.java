@@ -36,4 +36,6 @@ public interface MemberRecipeRepository extends JpaRepository<MemberRecipe,Long>
             "ORDER BY mr.createdAt DESC",
             countQuery = "SELECT count(mr) FROM MemberRecipe mr WHERE mr.member.id = :memberId")
     Page<MemberRecipe> findByMemberIdOrderByCreatedAtDesc(@Param("memberId") Long memberId, Pageable pageable);
+
+    void deleteAllByMember_Id(Long memberId);
 }

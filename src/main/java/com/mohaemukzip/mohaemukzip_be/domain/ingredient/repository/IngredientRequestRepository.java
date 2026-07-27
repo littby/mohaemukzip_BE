@@ -14,4 +14,6 @@ public interface IngredientRequestRepository extends JpaRepository<IngredientReq
     Optional<IngredientRequest> findByMemberAndIngredientName(Member member, String ingredientName);
 
     List<IngredientRequest> findAllByOrderByCreatedAtDesc();
+
+    void deleteAllByMember_Id(Long memberId);
 }
