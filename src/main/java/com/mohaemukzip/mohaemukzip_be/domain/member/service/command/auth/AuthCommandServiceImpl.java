@@ -1,5 +1,8 @@
 package com.mohaemukzip.mohaemukzip_be.domain.member.service.command.auth;
 
+import com.mohaemukzip.mohaemukzip_be.domain.ingredient.repository.IngredientRequestRepository;
+import com.mohaemukzip.mohaemukzip_be.domain.ingredient.repository.MemberFavoriteRepository;
+import com.mohaemukzip.mohaemukzip_be.domain.ingredient.repository.MemberIngredientRepository;
 import com.mohaemukzip.mohaemukzip_be.domain.member.dto.AuthRequestDTO;
 import com.mohaemukzip.mohaemukzip_be.domain.member.dto.AuthResponseDTO;
 import com.mohaemukzip.mohaemukzip_be.domain.member.entity.Member;
@@ -7,7 +10,11 @@ import com.mohaemukzip.mohaemukzip_be.domain.member.entity.enums.LoginType;
 import com.mohaemukzip.mohaemukzip_be.domain.member.entity.enums.Role;
 import com.mohaemukzip.mohaemukzip_be.domain.member.repository.MemberRepository;
 import com.mohaemukzip.mohaemukzip_be.domain.member.converter.AuthConverter;
+import com.mohaemukzip.mohaemukzip_be.domain.member.repository.MemberTermRepository;
 import com.mohaemukzip.mohaemukzip_be.domain.member.service.command.term.TermCommandService;
+import com.mohaemukzip.mohaemukzip_be.domain.mission.repository.MemberMissionRepository;
+import com.mohaemukzip.mohaemukzip_be.domain.recipe.repository.CookingRecordRepository;
+import com.mohaemukzip.mohaemukzip_be.domain.recipe.repository.MemberRecipeRepository;
 import com.mohaemukzip.mohaemukzip_be.global.exception.BusinessException;
 import com.mohaemukzip.mohaemukzip_be.global.jwt.JwtProvider;
 import com.mohaemukzip.mohaemukzip_be.global.jwt.TokenBlacklistService;
@@ -43,6 +50,14 @@ public class AuthCommandServiceImpl implements AuthCommandService {
     private final TokenBlacklistService tokenBlacklistService;
     private final ApplePublicKeyService applePublicKeyService;
     private final EmailService emailService;
+
+    private final MemberTermRepository memberTermRepository;
+    private final MemberMissionRepository memberMissionRepository;
+    private final MemberFavoriteRepository memberFavoriteRepository;
+    private final MemberIngredientRepository memberIngredientRepository;
+    private final MemberRecipeRepository memberRecipeRepository;
+    private final CookingRecordRepository cookingRecordRepository;
+    private final IngredientRequestRepository ingredientRequestRepository;
 
     private static final String KAKAO_USER_INFO_URI = "https://kapi.kakao.com/v2/user/me";
     private static final String REFRESH_TOKEN_PREFIX = "RT:";
@@ -262,11 +277,24 @@ public class AuthCommandServiceImpl implements AuthCommandService {
         if (member.isInactive()) {
             throw new BusinessException(ErrorStatus.ALREADY_WITHDRAWN_MEMBER);
         }
-        member.deactivate();
-        member.anonymizeAccount();
+
+
+        // 연관 데이터 완전 삭제 (외래키 제약 없는 순서라 순서 무관)
+        memberTermRepository.deleteAllByMember(member);
+        memberMissionRepository.deleteAllByMember_Id(memberId);
+        memberFavoriteRepository.deleteAllByMember_Id(memberId);
+        memberIngredientRepository.deleteAllByMember_Id(memberId);
+        memberRecipeRepository.deleteAllByMember_Id(memberId);
+        cookingRecordRepository.deleteAllByMember_Id(memberId);
+        ingredientRequestRepository.deleteAllByMember_Id(memberId);
+        memberRepository.deleteCookHistoriesByMemberId(memberId);
+
 
         // Redis에서 Refresh Token 삭제
         redisTemplate.delete(REFRESH_TOKEN_PREFIX + memberId);
+
+        // 회원 자체 삭제
+        memberRepository.delete(member);
 
         return AuthConverter.toWithdrawalResponseDTO();
     }

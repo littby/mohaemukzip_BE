@@ -91,5 +91,7 @@ public interface CookingRecordRepository extends JpaRepository<CookingRecord, Lo
 
     // 특정 시점 이후의 요리 기록 조회 (추천 시 최근 요리 필터링용)
     List<CookingRecord> findAllByMemberIdAndCreatedAtAfter(Long memberId, LocalDateTime startDate);
+
+    void deleteAllByMember_Id(Long memberId);
 }
 

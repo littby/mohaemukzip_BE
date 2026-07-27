@@ -25,4 +25,6 @@ public interface MemberFavoriteRepository extends JpaRepository<MemberFavorite, 
             "WHERE mf.member.id = :memberId")
     List<MemberFavorite> findAllByMemberId(@Param("memberId") Long memberId);
 
+    void deleteAllByMember_Id(Long memberId);
+
 }

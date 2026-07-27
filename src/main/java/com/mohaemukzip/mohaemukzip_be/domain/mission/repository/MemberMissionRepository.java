@@ -25,4 +25,6 @@ public interface MemberMissionRepository extends JpaRepository<MemberMission,Lon
             @Param("memberId") Long memberId,
             @Param("date") LocalDate date
     );
+
+    void deleteAllByMember_Id(Long memberId);
 }

@@ -86,4 +86,8 @@ public interface MemberIngredientRepository extends JpaRepository<MemberIngredie
     boolean existsByMemberId(Long memberId);
 
     Optional<MemberIngredient> findByMemberAndIngredient(Member member, Ingredient ingredient);
+
+    void deleteAllByMember_Id(Long memberId);
+
+
 }
