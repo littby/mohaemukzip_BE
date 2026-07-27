@@ -263,6 +263,7 @@ public class AuthCommandServiceImpl implements AuthCommandService {
             throw new BusinessException(ErrorStatus.ALREADY_WITHDRAWN_MEMBER);
         }
         member.deactivate();
+        member.anonymizeAccount();
 
         // Redis에서 Refresh Token 삭제
         redisTemplate.delete(REFRESH_TOKEN_PREFIX + memberId);
