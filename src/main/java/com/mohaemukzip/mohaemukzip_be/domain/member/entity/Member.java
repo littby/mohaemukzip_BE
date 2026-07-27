@@ -117,4 +117,9 @@ public class Member extends BaseEntity {
     public void agreeToTerms() {
         this.termsAgreed = true;
     }
+
+    public void anonymizeAccount() {
+        this.email = "withdrawn_" + this.id + "@deleted.local";
+        this.loginId = "withdrawn_" + this.id;
+    }
 }

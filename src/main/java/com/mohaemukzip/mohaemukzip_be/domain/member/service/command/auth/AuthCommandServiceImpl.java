@@ -278,6 +278,7 @@ public class AuthCommandServiceImpl implements AuthCommandService {
             throw new BusinessException(ErrorStatus.ALREADY_WITHDRAWN_MEMBER);
         }
 
+
         // 연관 데이터 완전 삭제 (외래키 제약 없는 순서라 순서 무관)
         memberTermRepository.deleteAllByMember(member);
         memberMissionRepository.deleteAllByMember_Id(memberId);
@@ -287,6 +288,7 @@ public class AuthCommandServiceImpl implements AuthCommandService {
         cookingRecordRepository.deleteAllByMember_Id(memberId);
         ingredientRequestRepository.deleteAllByMember_Id(memberId);
         memberRepository.deleteCookHistoriesByMemberId(memberId);
+
 
         // Redis에서 Refresh Token 삭제
         redisTemplate.delete(REFRESH_TOKEN_PREFIX + memberId);
