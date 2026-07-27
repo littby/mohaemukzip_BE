@@ -1,7 +1,5 @@
 package com.mohaemukzip.mohaemukzip_be.domain.chatbot.service.command;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mohaemukzip.mohaemukzip_be.domain.chatbot.converter.ChatConverter;
 import com.mohaemukzip.mohaemukzip_be.domain.chatbot.dto.RedisChatMessage;
 import com.mohaemukzip.mohaemukzip_be.domain.chatbot.dto.request.ChatPostRequest;
@@ -27,11 +25,9 @@ import java.util.stream.Collectors;
 public class ChatCommandServiceImpl implements ChatCommandService {
 
     private final ChatProcessor chatProcessor;
-    
+
     @Qualifier("redisCacheTemplate")
     private final RedisTemplate<String, Object> redisTemplate;
-    
-    private final ObjectMapper objectMapper;
 
     private static final long CHAT_TTL_MINUTES = 30;
 
@@ -76,25 +72,12 @@ public class ChatCommandServiceImpl implements ChatCommandService {
         }
 
         return rawList.stream()
-                .map(obj -> {
-                    try {
-                        return objectMapper.readValue(obj.toString(), RedisChatMessage.class);
-                    } catch (JsonProcessingException e) {
-                        log.error("Failed to parse Redis history message", e);
-                        return null;
-                    }
-                })
-                .filter(msg -> msg != null)
+                .map(obj -> (RedisChatMessage) obj)
                 .collect(Collectors.toList());
     }
 
     private void saveToRedis(String key, RedisChatMessage message) {
-        try {
-            String json = objectMapper.writeValueAsString(message);
-            redisTemplate.opsForList().rightPush(key, json);
-        } catch (JsonProcessingException e) {
-            log.error("Failed to serialize chat message", e);
-        }
+        redisTemplate.opsForList().rightPush(key, message);
     }
 
     private String getRedisKey(Long memberId) {

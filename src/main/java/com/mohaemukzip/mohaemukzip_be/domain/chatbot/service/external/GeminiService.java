@@ -3,6 +3,9 @@ package com.mohaemukzip.mohaemukzip_be.domain.chatbot.service.external;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mohaemukzip.mohaemukzip_be.domain.chatbot.dto.request.GeminiRequestDTO;
 import com.mohaemukzip.mohaemukzip_be.domain.chatbot.dto.response.GeminiResponseDTO;
+import com.mohaemukzip.mohaemukzip_be.domain.chatbot.service.helper.ChatMonitorLogger;
+import com.mohaemukzip.mohaemukzip_be.global.exception.BusinessException;
+import com.mohaemukzip.mohaemukzip_be.global.response.code.status.ErrorStatus;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,31 +19,31 @@ import io.micrometer.core.instrument.MeterRegistry;
 
 import java.time.Duration;
 import java.util.List;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @Service
 @Slf4j
 public class GeminiService {
 
-    private static final Logger chatbotMonitorLog = LoggerFactory.getLogger("CHATBOT_MONITOR");
-
     private final WebClient geminiWebClient;
     private final ObjectMapper objectMapper;
     private final MeterRegistry meterRegistry;
+    private final ChatMonitorLogger chatMonitorLogger;
 
     @Value("${gemini.recipe.api-url}")
     private String apiUrl;
 
-    private static final String MODEL_NAME = "gemini-2.5-flash";
+    @Value("${gemini.recipe.model}")
+    private String modelName;
 
     public GeminiService(
             @Qualifier("geminiRecipeWebClient") WebClient geminiWebClient,
             ObjectMapper objectMapper,
-            MeterRegistry meterRegistry) {
+            MeterRegistry meterRegistry,
+            ChatMonitorLogger chatMonitorLogger) {
         this.geminiWebClient = geminiWebClient;
         this.objectMapper = objectMapper;
         this.meterRegistry = meterRegistry;
+        this.chatMonitorLogger = chatMonitorLogger;
     }
 
     @CircuitBreaker(name = "gemini", fallbackMethod = "fallbackGenerateChatResponse")
@@ -53,7 +56,7 @@ public class GeminiService {
                 .build();
 
         try {
-            log.info("Gemini API 요청 시작 (Model: {}): {}", MODEL_NAME, apiUrl);
+            log.info("Gemini API 요청 시작 (Model: {}): {}", modelName, apiUrl);
             
             String rawResponse = geminiWebClient.post()
                     .bodyValue(request)
@@ -95,15 +98,14 @@ public class GeminiService {
                         log.debug("Gemini 응답 텍스트: {}", text);
                         log.info("Gemini 응답 텍스트 추출 성공 (length: {})", text.length());
                         
-                        // [모니터링] 토큰 사용량 비동기 JSON 로깅
+                        // [모니터링] 토큰 사용량 로깅
                         if (response.getUsageMetadata() != null) {
                             int totalTokens = response.getUsageMetadata().getTotalTokenCount();
                             int promptTokens = response.getUsageMetadata().getPromptTokenCount();
                             int completionTokens = response.getUsageMetadata().getCandidatesTokenCount();
-                            chatbotMonitorLog.info("{\"action\": \"CHATBOT_USAGE\", \"memberId\": {}, \"promptTokens\": {}, \"completionTokens\": {}, \"totalTokens\": {}, \"status\": \"SUCCESS\"}",
-                                    memberId, promptTokens, completionTokens, totalTokens);
-                                    
-                            meterRegistry.counter("gemini_api_tokens_total", "model", MODEL_NAME).increment(totalTokens);
+                            chatMonitorLogger.logUsage(memberId, promptTokens, completionTokens, totalTokens, "SUCCESS");
+
+                            meterRegistry.counter("gemini_api_tokens_total", "model", modelName).increment(totalTokens);
                         }
                         
                         return text;
@@ -114,15 +116,13 @@ public class GeminiService {
             }
         } catch (Exception e) {
             log.error("Gemini API 호출 중 예외 발생", e);
-            throw new RuntimeException("Gemini API Call Failed", e);
+            throw new BusinessException(ErrorStatus.EXTERNAL_API_ERROR);
         }
         return null;
     }
 
     public String fallbackGenerateChatResponse(Long memberId, String systemPrompt, List<GeminiRequestDTO.Content> contents, Throwable t) {
         log.error("Gemini API 서킷 브레이커 발동! Fallback 실행 - 원인: {}", t.getMessage());
-        throw new com.mohaemukzip.mohaemukzip_be.global.exception.BusinessException(
-                com.mohaemukzip.mohaemukzip_be.global.response.code.status.ErrorStatus.SERVICE_UNAVAILABLE
-        );
+        throw new BusinessException(ErrorStatus.SERVICE_UNAVAILABLE);
     }
 }

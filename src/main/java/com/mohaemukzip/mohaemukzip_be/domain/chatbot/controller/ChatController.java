@@ -3,6 +3,7 @@ package com.mohaemukzip.mohaemukzip_be.domain.chatbot.controller;
 import com.mohaemukzip.mohaemukzip_be.domain.chatbot.dto.request.ChatPostRequest;
 import com.mohaemukzip.mohaemukzip_be.domain.chatbot.dto.response.ChatResponse;
 import com.mohaemukzip.mohaemukzip_be.domain.chatbot.service.command.ChatCommandService;
+import com.mohaemukzip.mohaemukzip_be.global.response.ApiResponse;
 import com.mohaemukzip.mohaemukzip_be.global.security.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -35,13 +36,13 @@ public class ChatController {
      */
     @Operation(summary = "챗봇 대화 요청", description = "사용자의 메시지를 분석하여 답변을 생성하고, 필요 시 맞춤형 레시피를 추천합니다.")
     @PostMapping
-    public ResponseEntity<ChatResponse> processMessage(
+    public ResponseEntity<ApiResponse<ChatResponse>> processMessage(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @Valid @RequestBody ChatPostRequest request) {
-        
+
         Long memberId = userDetails.getMember().getId();
-        
+
         ChatResponse response = chatCommandService.processMessage(memberId, request);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.onSuccess(response));
     }
 }
