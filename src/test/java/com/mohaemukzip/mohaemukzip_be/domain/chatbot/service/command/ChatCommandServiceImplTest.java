@@ -39,7 +39,8 @@ class ChatCommandServiceImplTest {
     private ChatCommandServiceImpl chatCommandService;
 
     private static final Long MEMBER_ID = 1L;
-    private static final String REDIS_KEY = "chat:room:" + MEMBER_ID + ":messages";
+    private static final String SESSION_ID = "session-abc-123";
+    private static final String REDIS_KEY = "chat:session:" + SESSION_ID + ":messages";
 
     @BeforeEach
     void setUp() {
@@ -58,7 +59,7 @@ class ChatCommandServiceImplTest {
                 .build();
         when(chatProcessor.process(eq(MEMBER_ID), eq("냉장고 파먹기"), anyList())).thenReturn(processorResult);
 
-        ChatResponse response = chatCommandService.processMessage(MEMBER_ID, new ChatPostRequest("냉장고 파먹기"));
+        ChatResponse response = chatCommandService.processMessage(MEMBER_ID, new ChatPostRequest("냉장고 파먹기", SESSION_ID));
 
         assertThat(response.getTitle()).isEqualTo("추천 제목");
         assertThat(response.getMessage()).isEqualTo("추천 메시지");
@@ -88,10 +89,27 @@ class ChatCommandServiceImplTest {
         when(chatProcessor.process(eq(MEMBER_ID), eq("다음 질문"), anyList()))
                 .thenReturn(ChatProcessorResult.builder().title("t").message("m").recipeCards(List.of()).build());
 
-        chatCommandService.processMessage(MEMBER_ID, new ChatPostRequest("다음 질문"));
+        chatCommandService.processMessage(MEMBER_ID, new ChatPostRequest("다음 질문", SESSION_ID));
 
         ArgumentCaptor<List<RedisChatMessage>> historyCaptor = ArgumentCaptor.forClass(List.class);
         verify(chatProcessor).process(eq(MEMBER_ID), eq("다음 질문"), historyCaptor.capture());
         assertThat(historyCaptor.getValue()).containsExactly(previousUserMessage);
+    }
+
+    @Test
+    @DisplayName("같은 memberId라도 sessionId가 다르면 서로 다른 Redis 키를 사용한다 (세션 단위 히스토리 격리)")
+    void usesDifferentRedisKeyPerSessionForSameMember() {
+        String otherSessionId = "session-xyz-999";
+        String otherRedisKey = "chat:session:" + otherSessionId + ":messages";
+
+        when(listOperations.range(eq(otherRedisKey), anyLong(), anyLong())).thenReturn(List.of());
+        when(chatProcessor.process(eq(MEMBER_ID), eq("새 세션 질문"), anyList()))
+                .thenReturn(ChatProcessorResult.builder().title("t").message("m").recipeCards(List.of()).build());
+
+        chatCommandService.processMessage(MEMBER_ID, new ChatPostRequest("새 세션 질문", otherSessionId));
+
+        verify(listOperations).range(eq(otherRedisKey), anyLong(), anyLong());
+        verify(listOperations, never()).range(eq(REDIS_KEY), anyLong(), anyLong());
+        verify(redisTemplate).expire(otherRedisKey, 30, TimeUnit.MINUTES);
     }
 }
