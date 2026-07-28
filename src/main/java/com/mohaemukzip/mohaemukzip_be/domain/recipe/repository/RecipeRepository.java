@@ -58,4 +58,13 @@ public interface RecipeRepository extends JpaRepository<Recipe, Long> {
 
     // Dish ID로 레시피 조회
     Page<Recipe> findByDishId(Long dishId, Pageable pageable);
+
+    // ===== 챗봇 구조화 필터링용 메서드 =====
+
+    // 조리시간(분) 이하인 레시피 ID만 조회
+    @Query("SELECT r.id FROM Recipe r WHERE r.cookingTime IS NOT NULL AND r.cookingTime <= :maxCookingTime")
+    List<Long> findIdsByCookingTimeLessThanEqual(@Param("maxCookingTime") int maxCookingTime);
+
+    // 키워드 매칭 후보가 없을 때 폴백용 인기 레시피 상위 N개
+    List<Recipe> findTop50ByOrderByViewsDesc();
 }

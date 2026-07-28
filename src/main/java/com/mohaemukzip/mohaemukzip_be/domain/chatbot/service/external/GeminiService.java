@@ -19,6 +19,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @Slf4j
@@ -47,13 +48,22 @@ public class GeminiService {
     }
 
     @CircuitBreaker(name = "gemini", fallbackMethod = "fallbackGenerateChatResponse")
-    public String generateChatResponse(Long memberId, String systemPrompt, List<GeminiRequestDTO.Content> contents) {
-        GeminiRequestDTO request = GeminiRequestDTO.builder()
+    public String generateChatResponse(Long memberId, String systemPrompt, List<GeminiRequestDTO.Content> contents,
+                                        Map<String, Object> responseSchema) {
+        GeminiRequestDTO.GeminiRequestDTOBuilder requestBuilder = GeminiRequestDTO.builder()
                 .systemInstruction(GeminiRequestDTO.SystemInstruction.builder()
                         .parts(List.of(GeminiRequestDTO.Part.builder().text(systemPrompt).build()))
                         .build())
-                .contents(contents)
-                .build();
+                .contents(contents);
+
+        if (responseSchema != null) {
+            requestBuilder.generationConfig(GeminiRequestDTO.GenerationConfig.builder()
+                    .responseMimeType("application/json")
+                    .responseSchema(responseSchema)
+                    .build());
+        }
+
+        GeminiRequestDTO request = requestBuilder.build();
 
         try {
             log.info("Gemini API 요청 시작 (Model: {}): {}", modelName, apiUrl);
@@ -121,7 +131,8 @@ public class GeminiService {
         return null;
     }
 
-    public String fallbackGenerateChatResponse(Long memberId, String systemPrompt, List<GeminiRequestDTO.Content> contents, Throwable t) {
+    public String fallbackGenerateChatResponse(Long memberId, String systemPrompt, List<GeminiRequestDTO.Content> contents,
+                                                Map<String, Object> responseSchema, Throwable t) {
         log.error("Gemini API 서킷 브레이커 발동! Fallback 실행 - 원인: {}", t.getMessage());
         throw new BusinessException(ErrorStatus.SERVICE_UNAVAILABLE);
     }
