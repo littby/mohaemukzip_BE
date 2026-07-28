@@ -5,6 +5,7 @@ import com.mohaemukzip.mohaemukzip_be.domain.chatbot.dto.RedisChatMessage;
 import com.mohaemukzip.mohaemukzip_be.domain.chatbot.dto.request.ChatPostRequest;
 import com.mohaemukzip.mohaemukzip_be.domain.chatbot.dto.response.ChatProcessorResult;
 import com.mohaemukzip.mohaemukzip_be.domain.chatbot.dto.response.ChatResponse;
+import com.mohaemukzip.mohaemukzip_be.domain.chatbot.dto.response.RecipeCardResponse;
 import com.mohaemukzip.mohaemukzip_be.domain.chatbot.entity.enums.SenderType;
 import com.mohaemukzip.mohaemukzip_be.domain.chatbot.service.processor.ChatProcessor;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,7 @@ import java.util.stream.Collectors;
 public class ChatCommandServiceImpl implements ChatCommandService {
 
     private final ChatProcessor chatProcessor;
+    private final ChatLogService chatLogService;
 
     @Qualifier("redisCacheTemplate")
     private final RedisTemplate<String, Object> redisTemplate;
@@ -61,7 +63,14 @@ public class ChatCommandServiceImpl implements ChatCommandService {
         // 5. TTL 갱신 (마지막 활동 기준 30분 연장)
         redisTemplate.expire(redisKey, CHAT_TTL_MINUTES, TimeUnit.MINUTES);
 
-        // 6. 최종 응답 DTO 변환
+        // 6. 모니터링/분석용 대화 로그 비동기 저장 (응답 지연 없음)
+        List<Long> recipeIds = result.getRecipeCards() != null
+                ? result.getRecipeCards().stream().map(RecipeCardResponse::getRecipeId).collect(Collectors.toList())
+                : List.of();
+        chatLogService.saveChatLog(memberId, request.getSessionId(), request.getMessage(),
+                result.getTitle(), result.getMessage(), recipeIds);
+
+        // 7. 최종 응답 DTO 변환
         return ChatConverter.toChatResponse(result, botMessage.getId());
     }
 

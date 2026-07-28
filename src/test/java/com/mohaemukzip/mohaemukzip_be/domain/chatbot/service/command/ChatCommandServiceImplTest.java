@@ -4,6 +4,7 @@ import com.mohaemukzip.mohaemukzip_be.domain.chatbot.dto.RedisChatMessage;
 import com.mohaemukzip.mohaemukzip_be.domain.chatbot.dto.request.ChatPostRequest;
 import com.mohaemukzip.mohaemukzip_be.domain.chatbot.dto.response.ChatProcessorResult;
 import com.mohaemukzip.mohaemukzip_be.domain.chatbot.dto.response.ChatResponse;
+import com.mohaemukzip.mohaemukzip_be.domain.chatbot.dto.response.RecipeCardResponse;
 import com.mohaemukzip.mohaemukzip_be.domain.chatbot.entity.enums.SenderType;
 import com.mohaemukzip.mohaemukzip_be.domain.chatbot.service.processor.ChatProcessor;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,6 +32,9 @@ class ChatCommandServiceImplTest {
     private ChatProcessor chatProcessor;
 
     @Mock
+    private ChatLogService chatLogService;
+
+    @Mock
     private RedisTemplate<String, Object> redisTemplate;
 
     @Mock
@@ -44,7 +48,7 @@ class ChatCommandServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        chatCommandService = new ChatCommandServiceImpl(chatProcessor, redisTemplate);
+        chatCommandService = new ChatCommandServiceImpl(chatProcessor, chatLogService, redisTemplate);
         lenient().when(redisTemplate.opsForList()).thenReturn(listOperations);
     }
 
@@ -111,5 +115,23 @@ class ChatCommandServiceImplTest {
         verify(listOperations).range(eq(otherRedisKey), anyLong(), anyLong());
         verify(listOperations, never()).range(eq(REDIS_KEY), anyLong(), anyLong());
         verify(redisTemplate).expire(otherRedisKey, 30, TimeUnit.MINUTES);
+    }
+
+    @Test
+    @DisplayName("응답 처리 후 모니터링/분석용 대화 로그를 memberId/sessionId/추천 레시피ID와 함께 비동기 저장 요청한다")
+    void savesChatLogWithRecommendedRecipeIds() {
+        when(listOperations.range(eq(REDIS_KEY), anyLong(), anyLong())).thenReturn(List.of());
+        RecipeCardResponse card = RecipeCardResponse.builder().recipeId(42L).title("김치찌개").build();
+        ChatProcessorResult processorResult = ChatProcessorResult.builder()
+                .title("추천 제목")
+                .message("추천 메시지")
+                .recipeCards(List.of(card))
+                .build();
+        when(chatProcessor.process(eq(MEMBER_ID), eq("냉장고 파먹기"), anyList())).thenReturn(processorResult);
+
+        chatCommandService.processMessage(MEMBER_ID, new ChatPostRequest("냉장고 파먹기", SESSION_ID));
+
+        verify(chatLogService).saveChatLog(
+                MEMBER_ID, SESSION_ID, "냉장고 파먹기", "추천 제목", "추천 메시지", List.of(42L));
     }
 }
