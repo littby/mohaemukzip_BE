@@ -1,6 +1,5 @@
 package com.mohaemukzip.mohaemukzip_be.domain.chatbot.service.helper;
 
-import com.mohaemukzip.mohaemukzip_be.domain.ingredient.entity.Ingredient;
 import com.mohaemukzip.mohaemukzip_be.domain.ingredient.repository.IngredientRepository;
 import com.mohaemukzip.mohaemukzip_be.domain.ingredient.repository.RecipeIngredientRepository;
 import com.mohaemukzip.mohaemukzip_be.domain.recipe.entity.Recipe;
@@ -95,13 +94,10 @@ public class RecipeCandidateFinder {
     }
 
     private Set<Long> extractIngredientMatchedRecipeIds(String message) {
-        List<Ingredient> matchedIngredients = ingredientRepository.findAll().stream()
-                .filter(i -> i.getName() != null && !i.getName().isBlank() && message.contains(i.getName()))
-                .collect(Collectors.toList());
-        if (matchedIngredients.isEmpty()) {
+        List<Long> ingredientIds = ingredientRepository.findIdsContainedInMessage(message);
+        if (ingredientIds.isEmpty()) {
             return null;
         }
-        List<Long> ingredientIds = matchedIngredients.stream().map(Ingredient::getId).collect(Collectors.toList());
         return new HashSet<>(recipeIngredientRepository.findRecipeIdsByIngredientIds(ingredientIds));
     }
 
@@ -126,17 +122,14 @@ public class RecipeCandidateFinder {
     }
 
     private Set<Long> extractSituationMatchedRecipeIds(String message) {
-        List<com.mohaemukzip.mohaemukzip_be.domain.recipe.entity.Category> matchedCategories =
-                categoryRepository.findAll().stream()
-                        .filter(c -> c.getName() != null && !c.getName().isBlank() && message.contains(c.getName()))
-                        .collect(Collectors.toList());
-        if (matchedCategories.isEmpty()) {
+        List<Long> categoryIds = categoryRepository.findIdsContainedInMessage(message);
+        if (categoryIds.isEmpty()) {
             return null;
         }
 
         Set<Long> recipeIds = new HashSet<>();
-        for (com.mohaemukzip.mohaemukzip_be.domain.recipe.entity.Category category : matchedCategories) {
-            recipeRepository.findRecipesByDishCategoryId(category.getId(), Pageable.unpaged())
+        for (Long categoryId : categoryIds) {
+            recipeRepository.findRecipesByDishCategoryId(categoryId, Pageable.unpaged())
                     .forEach(recipe -> recipeIds.add(recipe.getId()));
         }
         return recipeIds;

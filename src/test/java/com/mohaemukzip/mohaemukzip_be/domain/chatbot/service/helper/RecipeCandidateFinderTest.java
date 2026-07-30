@@ -1,6 +1,5 @@
 package com.mohaemukzip.mohaemukzip_be.domain.chatbot.service.helper;
 
-import com.mohaemukzip.mohaemukzip_be.domain.ingredient.entity.Ingredient;
 import com.mohaemukzip.mohaemukzip_be.domain.ingredient.repository.IngredientRepository;
 import com.mohaemukzip.mohaemukzip_be.domain.ingredient.repository.RecipeIngredientRepository;
 import com.mohaemukzip.mohaemukzip_be.domain.recipe.entity.Recipe;
@@ -38,8 +37,8 @@ class RecipeCandidateFinderTest {
     void setUp() {
         recipeCandidateFinder = new RecipeCandidateFinder(
                 recipeRepository, ingredientRepository, recipeIngredientRepository, categoryRepository);
-        lenient().when(ingredientRepository.findAll()).thenReturn(List.of());
-        lenient().when(categoryRepository.findAll()).thenReturn(List.of());
+        lenient().when(ingredientRepository.findIdsContainedInMessage(anyString())).thenReturn(List.of());
+        lenient().when(categoryRepository.findIdsContainedInMessage(anyString())).thenReturn(List.of());
     }
 
     private Recipe recipe(Long id) {
@@ -61,8 +60,7 @@ class RecipeCandidateFinderTest {
     @Test
     @DisplayName("메시지에 등록된 재료명이 포함되면 해당 재료를 쓰는 레시피로 필터링한다")
     void filtersByMatchedIngredientName() {
-        Ingredient tofu = Ingredient.builder().id(100L).name("두부").build();
-        when(ingredientRepository.findAll()).thenReturn(List.of(tofu));
+        when(ingredientRepository.findIdsContainedInMessage(anyString())).thenReturn(List.of(100L));
         when(recipeIngredientRepository.findRecipeIdsByIngredientIds(List.of(100L))).thenReturn(List.of(5L));
         when(recipeRepository.findByIdIn(anyCollection())).thenReturn(List.of(recipe(5L)));
 
@@ -97,8 +95,7 @@ class RecipeCandidateFinderTest {
     @Test
     @DisplayName("키워드는 감지되지만 교집합 결과가 없으면 인기순 폴백으로 전환한다")
     void fallsBackToPopularWhenIntersectionIsEmpty() {
-        Ingredient tofu = Ingredient.builder().id(100L).name("두부").build();
-        when(ingredientRepository.findAll()).thenReturn(List.of(tofu));
+        when(ingredientRepository.findIdsContainedInMessage(anyString())).thenReturn(List.of(100L));
         when(recipeIngredientRepository.findRecipeIdsByIngredientIds(List.of(100L))).thenReturn(List.of());
 
         List<Recipe> popular = List.of(recipe(9L));
