@@ -43,8 +43,7 @@ class ChatCommandServiceImplTest {
     private ChatCommandServiceImpl chatCommandService;
 
     private static final Long MEMBER_ID = 1L;
-    private static final String SESSION_ID = "session-abc-123";
-    private static final String REDIS_KEY = "chat:session:" + SESSION_ID + ":messages";
+    private static final String REDIS_KEY = "chat:room:" + MEMBER_ID + ":messages";
 
     @BeforeEach
     void setUp() {
@@ -63,7 +62,7 @@ class ChatCommandServiceImplTest {
                 .build();
         when(chatProcessor.process(eq(MEMBER_ID), eq("냉장고 파먹기"), anyList())).thenReturn(processorResult);
 
-        ChatResponse response = chatCommandService.processMessage(MEMBER_ID, new ChatPostRequest("냉장고 파먹기", SESSION_ID));
+        ChatResponse response = chatCommandService.processMessage(MEMBER_ID, new ChatPostRequest("냉장고 파먹기"));
 
         assertThat(response.getTitle()).isEqualTo("추천 제목");
         assertThat(response.getMessage()).isEqualTo("추천 메시지");
@@ -93,7 +92,7 @@ class ChatCommandServiceImplTest {
         when(chatProcessor.process(eq(MEMBER_ID), eq("다음 질문"), anyList()))
                 .thenReturn(ChatProcessorResult.builder().title("t").message("m").recipeCards(List.of()).build());
 
-        chatCommandService.processMessage(MEMBER_ID, new ChatPostRequest("다음 질문", SESSION_ID));
+        chatCommandService.processMessage(MEMBER_ID, new ChatPostRequest("다음 질문"));
 
         ArgumentCaptor<List<RedisChatMessage>> historyCaptor = ArgumentCaptor.forClass(List.class);
         verify(chatProcessor).process(eq(MEMBER_ID), eq("다음 질문"), historyCaptor.capture());
@@ -101,16 +100,16 @@ class ChatCommandServiceImplTest {
     }
 
     @Test
-    @DisplayName("같은 memberId라도 sessionId가 다르면 서로 다른 Redis 키를 사용한다 (세션 단위 히스토리 격리)")
-    void usesDifferentRedisKeyPerSessionForSameMember() {
-        String otherSessionId = "session-xyz-999";
-        String otherRedisKey = "chat:session:" + otherSessionId + ":messages";
+    @DisplayName("서로 다른 memberId는 서로 다른 Redis 키로 격리된다")
+    void usesDifferentRedisKeyPerMember() {
+        Long otherMemberId = 2L;
+        String otherRedisKey = "chat:room:" + otherMemberId + ":messages";
 
         when(listOperations.range(eq(otherRedisKey), anyLong(), anyLong())).thenReturn(List.of());
-        when(chatProcessor.process(eq(MEMBER_ID), eq("새 세션 질문"), anyList()))
+        when(chatProcessor.process(eq(otherMemberId), eq("다른 회원 질문"), anyList()))
                 .thenReturn(ChatProcessorResult.builder().title("t").message("m").recipeCards(List.of()).build());
 
-        chatCommandService.processMessage(MEMBER_ID, new ChatPostRequest("새 세션 질문", otherSessionId));
+        chatCommandService.processMessage(otherMemberId, new ChatPostRequest("다른 회원 질문"));
 
         verify(listOperations).range(eq(otherRedisKey), anyLong(), anyLong());
         verify(listOperations, never()).range(eq(REDIS_KEY), anyLong(), anyLong());
@@ -118,7 +117,7 @@ class ChatCommandServiceImplTest {
     }
 
     @Test
-    @DisplayName("응답 처리 후 모니터링/분석용 대화 로그를 memberId/sessionId/추천 레시피ID와 함께 비동기 저장 요청한다")
+    @DisplayName("응답 처리 후 모니터링/분석용 대화 로그를 memberId/추천 레시피ID와 함께 비동기 저장 요청한다")
     void savesChatLogWithRecommendedRecipeIds() {
         when(listOperations.range(eq(REDIS_KEY), anyLong(), anyLong())).thenReturn(List.of());
         RecipeCardResponse card = RecipeCardResponse.builder().recipeId(42L).title("김치찌개").build();
@@ -129,9 +128,9 @@ class ChatCommandServiceImplTest {
                 .build();
         when(chatProcessor.process(eq(MEMBER_ID), eq("냉장고 파먹기"), anyList())).thenReturn(processorResult);
 
-        chatCommandService.processMessage(MEMBER_ID, new ChatPostRequest("냉장고 파먹기", SESSION_ID));
+        chatCommandService.processMessage(MEMBER_ID, new ChatPostRequest("냉장고 파먹기"));
 
         verify(chatLogService).saveChatLog(
-                MEMBER_ID, SESSION_ID, "냉장고 파먹기", "추천 제목", "추천 메시지", List.of(42L));
+                MEMBER_ID, "냉장고 파먹기", "추천 제목", "추천 메시지", List.of(42L));
     }
 }

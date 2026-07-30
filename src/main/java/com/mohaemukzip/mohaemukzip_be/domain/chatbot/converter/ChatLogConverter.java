@@ -10,7 +10,6 @@ public class ChatLogConverter {
         return ChatLogResponse.Detail.builder()
                 .id(chatLog.getId())
                 .memberId(chatLog.getMember().getId())
-                .sessionId(chatLog.getSessionId())
                 .userMessage(chatLog.getUserMessage())
                 .botTitle(chatLog.getBotTitle())
                 .botMessage(chatLog.getBotMessage())

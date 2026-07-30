@@ -7,6 +7,8 @@ import com.mohaemukzip.mohaemukzip_be.domain.chatbot.repository.ChatLogRepositor
 import com.mohaemukzip.mohaemukzip_be.global.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -25,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminChatController {
 
     private static final int DEFAULT_PAGE_SIZE = 20;
+    private static final int MAX_PAGE_SIZE = 100;
 
     private final ChatLogRepository chatLogRepository;
 
@@ -33,8 +36,8 @@ public class AdminChatController {
     @Operation(summary = "챗봇 대화 로그 조회", description = "관리자 전용. memberId를 지정하면 해당 회원의 대화 이력만, 지정하지 않으면 전체 최신 대화 로그를 최신순으로 조회합니다.")
     public ApiResponse<ChatLogResponse.PageResponse> getChatLogs(
             @RequestParam(required = false) Long memberId,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "" + DEFAULT_PAGE_SIZE) int size
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "" + DEFAULT_PAGE_SIZE) @Min(1) @Max(MAX_PAGE_SIZE) int size
     ) {
         PageRequest pageRequest = PageRequest.of(page, size);
         Page<ChatLog> chatLogPage = (memberId != null)

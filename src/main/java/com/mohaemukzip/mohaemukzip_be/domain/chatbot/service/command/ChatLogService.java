@@ -10,7 +10,9 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 회원별 챗봇 질문/답변을 DB에 비동기로 영구 기록한다 (관리자 모니터링/분석용).
@@ -27,21 +29,20 @@ public class ChatLogService {
 
     @Async
     @Transactional
-    public void saveChatLog(Long memberId, String sessionId, String userMessage,
+    public void saveChatLog(Long memberId, String userMessage,
                              String botTitle, String botMessage, List<Long> recommendedRecipeIds) {
         try {
             Member member = memberRepository.getReferenceById(memberId);
             ChatLog chatLog = ChatLog.builder()
                     .member(member)
-                    .sessionId(sessionId)
                     .userMessage(userMessage)
                     .botTitle(botTitle)
                     .botMessage(botMessage)
-                    .recommendedRecipeIds(recommendedRecipeIds != null ? recommendedRecipeIds : List.of())
+                    .recommendedRecipeIds(recommendedRecipeIds != null ? new HashSet<>(recommendedRecipeIds) : Set.of())
                     .build();
             chatLogRepository.save(chatLog);
         } catch (Exception e) {
-            log.error("[챗봇 로그] 저장 실패 - memberId: {}, sessionId: {}", memberId, sessionId, e);
+            log.error("[챗봇 로그] 저장 실패 - memberId: {}", memberId, e);
         }
     }
 }

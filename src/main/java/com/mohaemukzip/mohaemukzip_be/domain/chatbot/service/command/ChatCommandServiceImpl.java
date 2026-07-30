@@ -35,7 +35,7 @@ public class ChatCommandServiceImpl implements ChatCommandService {
 
     @Override
     public ChatResponse processMessage(Long memberId, ChatPostRequest request) {
-        String redisKey = getRedisKey(request.getSessionId());
+        String redisKey = getRedisKey(memberId);
 
         // 1. 이전 대화 내역 조회 (최근 6개 = 3턴)
         List<RedisChatMessage> history = getRecentHistory(redisKey, 6);
@@ -67,7 +67,7 @@ public class ChatCommandServiceImpl implements ChatCommandService {
         List<Long> recipeIds = result.getRecipeCards() != null
                 ? result.getRecipeCards().stream().map(RecipeCardResponse::getRecipeId).collect(Collectors.toList())
                 : List.of();
-        chatLogService.saveChatLog(memberId, request.getSessionId(), request.getMessage(),
+        chatLogService.saveChatLog(memberId, request.getMessage(),
                 result.getTitle(), result.getMessage(), recipeIds);
 
         // 7. 최종 응답 DTO 변환
@@ -89,7 +89,7 @@ public class ChatCommandServiceImpl implements ChatCommandService {
         redisTemplate.opsForList().rightPush(key, message);
     }
 
-    private String getRedisKey(String sessionId) {
-        return "chat:session:" + sessionId + ":messages";
+    private String getRedisKey(Long memberId) {
+        return "chat:room:" + memberId + ":messages";
     }
 }

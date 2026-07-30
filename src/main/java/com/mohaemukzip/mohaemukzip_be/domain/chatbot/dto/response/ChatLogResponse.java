@@ -7,6 +7,7 @@ import org.springframework.data.domain.Page;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 
 public class ChatLogResponse {
 
@@ -45,9 +46,6 @@ public class ChatLogResponse {
         @Schema(description = "회원 ID")
         private Long memberId;
 
-        @Schema(description = "대화 세션 ID")
-        private String sessionId;
-
         @Schema(description = "사용자 질문 원문")
         private String userMessage;
 
@@ -57,8 +55,8 @@ public class ChatLogResponse {
         @Schema(description = "봇 응답 본문")
         private String botMessage;
 
-        @Schema(description = "함께 추천된 레시피 ID 목록")
-        private List<Long> recommendedRecipeIds;
+        @Schema(description = "함께 추천된 레시피 ID 목록 (순서 보장 없음)")
+        private Set<Long> recommendedRecipeIds;
 
         @Schema(description = "생성 시각")
         private LocalDateTime createdAt;

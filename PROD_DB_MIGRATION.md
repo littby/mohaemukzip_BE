@@ -17,7 +17,6 @@ CREATE TABLE `chat_logs` (
   `updated_at` datetime(6) NOT NULL,
   `bot_message` text,
   `bot_title` varchar(255) DEFAULT NULL,
-  `session_id` varchar(255) NOT NULL,
   `user_message` text NOT NULL,
   `member_id` bigint NOT NULL,
   PRIMARY KEY (`chat_log_id`),
@@ -34,6 +33,8 @@ CREATE TABLE `chat_log_recipe_ids` (
 ```
 
 **관련 코드**: `domain/chatbot/entity/ChatLog.java`, `ChatLogRepository`, `ChatLogService`, `AdminChatController` (`GET /admin/chats`).
+
+> (변경 이력) 최초 설계는 프론트가 발급하는 `sessionId`를 별도 컬럼(`session_id`)으로 저장했으나, 검토 끝에 `sessionId` 개념 자체를 제거하고 `memberId` + Redis 30분 TTL만으로 대화 맥락을 관리하는 방식으로 되돌렸습니다. 이에 따라 `chat_logs.session_id` 컬럼도 함께 제거했습니다. 위 DDL은 이 변경이 반영된 최종본입니다.
 
 ---
 

@@ -31,24 +31,23 @@ class ChatLogServiceTest {
     private static final Long MEMBER_ID = 1L;
 
     @Test
-    @DisplayName("정상적으로 ChatLog를 회원/세션/질문/답변/추천 레시피ID와 함께 저장한다")
+    @DisplayName("정상적으로 ChatLog를 회원/질문/답변/추천 레시피ID와 함께 저장한다")
     void savesChatLogWithAllFields() {
         chatLogService = new ChatLogService(chatLogRepository, memberRepository);
         Member member = Member.builder().id(MEMBER_ID).build();
         when(memberRepository.getReferenceById(MEMBER_ID)).thenReturn(member);
 
-        chatLogService.saveChatLog(MEMBER_ID, "session-1", "질문", "제목", "답변", List.of(10L, 20L));
+        chatLogService.saveChatLog(MEMBER_ID, "질문", "제목", "답변", List.of(10L, 20L));
 
         ArgumentCaptor<ChatLog> captor = ArgumentCaptor.forClass(ChatLog.class);
         verify(chatLogRepository).save(captor.capture());
 
         ChatLog saved = captor.getValue();
         assertThat(saved.getMember()).isEqualTo(member);
-        assertThat(saved.getSessionId()).isEqualTo("session-1");
         assertThat(saved.getUserMessage()).isEqualTo("질문");
         assertThat(saved.getBotTitle()).isEqualTo("제목");
         assertThat(saved.getBotMessage()).isEqualTo("답변");
-        assertThat(saved.getRecommendedRecipeIds()).containsExactly(10L, 20L);
+        assertThat(saved.getRecommendedRecipeIds()).containsExactlyInAnyOrder(10L, 20L);
     }
 
     @Test
@@ -58,7 +57,7 @@ class ChatLogServiceTest {
         when(memberRepository.getReferenceById(MEMBER_ID)).thenThrow(new RuntimeException("DB 장애"));
 
         assertThatCode(() ->
-                chatLogService.saveChatLog(MEMBER_ID, "session-1", "질문", "제목", "답변", List.of())
+                chatLogService.saveChatLog(MEMBER_ID, "질문", "제목", "답변", List.of())
         ).doesNotThrowAnyException();
 
         verify(chatLogRepository, never()).save(any());
