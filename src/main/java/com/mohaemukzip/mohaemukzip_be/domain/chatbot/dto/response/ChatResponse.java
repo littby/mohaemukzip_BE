@@ -37,10 +37,6 @@ public class ChatResponse {
     private String formattedTime;
     
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    @Schema(description = "추천 레시피 목록 (기존 방식, 추천이 없을 경우 null)")
-    private List<ChatRecipeResponse> recommendRecipes;
-
-    @JsonInclude(JsonInclude.Include.NON_NULL)
-    @Schema(description = "RAG 추천 레시피 카드 목록 (추천 이유 포함, null이면 기존 방식)")
+    @Schema(description = "RAG 추천 레시피 카드 목록 (추천 이유 포함)")
     private List<RecipeCardResponse> recipeCards;
 }

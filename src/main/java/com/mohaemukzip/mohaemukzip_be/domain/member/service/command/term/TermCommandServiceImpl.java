@@ -64,6 +64,10 @@ public class TermCommandServiceImpl implements TermCommandService {
                 .orElseThrow(() -> new BusinessException(ErrorStatus.MEMBER_NOT_FOUND));
 
         memberTermRepository.deleteAllByMember(member);
+        // MemberTerm의 PK가 IDENTITY 전략이라 saveAll()의 INSERT는 즉시 실행되는 반면,
+        // deleteAllByMember()의 DELETE는 flush 시점까지 지연된다. flush 없이 바로 재삽입하면
+        // (member_id, term_id) 유니크 제약을 위반할 수 있어 명시적으로 flush한다.
+        memberTermRepository.flush();
         // createMemberTerms 재사용 (termName, agreedAt 완벽)
         createMemberTerms(member, terms);
         member.agreeToTerms();

@@ -58,6 +58,14 @@ public class RecipeResponseDTO {
     ) {}
 
     @Builder
+    public record MissingSummaryItem(
+            Long recipeId,
+            String title,
+            Long dishId,
+            String videoId
+    ) {}
+
+    @Builder
     @Getter
     @NoArgsConstructor
     @AllArgsConstructor

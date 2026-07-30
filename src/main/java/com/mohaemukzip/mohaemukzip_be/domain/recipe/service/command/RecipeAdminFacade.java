@@ -5,6 +5,7 @@ import com.mohaemukzip.mohaemukzip_be.domain.recipe.entity.Recipe;
 import com.mohaemukzip.mohaemukzip_be.domain.recipe.entity.Summary;
 import com.mohaemukzip.mohaemukzip_be.domain.recipe.builder.GeminiPromptBuilder;
 import com.mohaemukzip.mohaemukzip_be.domain.recipe.converter.GeminiResponseConverter;
+import com.mohaemukzip.mohaemukzip_be.domain.recipe.repository.RecipeRepository;
 import com.mohaemukzip.mohaemukzip_be.domain.recipe.service.crawler.RecipeCrawler;
 import com.mohaemukzip.mohaemukzip_be.global.client.transcript.TranscriptClient;
 import com.mohaemukzip.mohaemukzip_be.global.client.transcript.dto.TranscriptSegment;
@@ -21,6 +22,7 @@ import reactor.core.publisher.Mono;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -31,6 +33,7 @@ public class RecipeAdminFacade {
     private static final Duration GEMINI_API_TIMEOUT = Duration.ofSeconds(30);
 
     private final RecipeCommandService recipeCommandService;
+    private final RecipeRepository recipeRepository;
     private final RecipeCrawler recipeCrawler;
     private final TranscriptClient transcriptClient;
     private final GeminiPromptBuilder geminiPromptBuilder;
@@ -90,6 +93,21 @@ public class RecipeAdminFacade {
             recipeCommandService.deleteSummary(summary.getId());
             throw e;
         }
+    }
+
+    /**
+     * Summary가 하나도 생성되지 않은(=시도조차 안 됐거나 실패해서 정리된) 레시피 목록을 조회한다.
+     * dishId를 주면 해당 요리로만 좁혀서 조회한다.
+     */
+    public List<RecipeResponseDTO.MissingSummaryItem> getRecipesWithoutSummary(Long dishId) {
+        return recipeRepository.findAllWithoutSummary(dishId).stream()
+                .map(recipe -> RecipeResponseDTO.MissingSummaryItem.builder()
+                        .recipeId(recipe.getId())
+                        .title(recipe.getTitle())
+                        .dishId(recipe.getDish() != null ? recipe.getDish().getId() : null)
+                        .videoId(recipe.getVideoId())
+                        .build())
+                .collect(Collectors.toList());
     }
 
     private String callGeminiApi(String prompt) {

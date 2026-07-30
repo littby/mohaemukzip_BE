@@ -59,23 +59,19 @@ public interface RecipeRepository extends JpaRepository<Recipe, Long> {
     // Dish ID로 레시피 조회
     Page<Recipe> findByDishId(Long dishId, Pageable pageable);
 
-    // ===== 임베딩 배치 처리용 =====
+    // ===== 챗봇 구조화 필터링용 메서드 =====
 
-    /**
-     * embedding 컬럼이 null인 레시피 목록을 조회합니다.
-     * RecipeEmbeddingService의 배치 작업에서 사용됩니다.
-     * (임베딩이 아직 생성되지 않은 레시피만 처리하기 위함)
-     */
-    /**
-     * embedding 컬럼이 null인 레시피 목록을 조회합니다.
-     * RecipeEmbeddingService의 배치 작업에서 사용됩니다.
-     * (임베딩이 아직 생성되지 않은 레시피만 처리하기 위함)
-     */
-    List<Recipe> findByEmbeddingIsNull();
+    // 조리시간(분) 이하인 레시피 ID만 조회
+    @Query("SELECT r.id FROM Recipe r WHERE r.cookingTime IS NOT NULL AND r.cookingTime <= :maxCookingTime")
+    List<Long> findIdsByCookingTimeLessThanEqual(@Param("maxCookingTime") int maxCookingTime);
 
-    /**
-     * embedding 컬럼이 null이 아닌 레시피 목록을 조회합니다.
-     * RecipeSearchService의 벡터 검색 작업에서 사용됩니다.
-     */
-    List<Recipe> findByEmbeddingIsNotNull();
+    // 키워드 매칭 후보가 없을 때 폴백용 인기 레시피 상위 N개
+    List<Recipe> findTop50ByOrderByViewsDesc();
+
+    // ===== 관리자용 요약(Summary) 누락 확인/재시도 메서드 =====
+
+    // Summary가 하나도 생성되지 않은(=요약 실패했거나 시도조차 안 된) 레시피 조회. dishId가 null이면 전체 대상.
+    @Query("SELECT r FROM Recipe r WHERE NOT EXISTS (SELECT 1 FROM Summary s WHERE s.recipe = r) " +
+            "AND (:dishId IS NULL OR r.dish.id = :dishId)")
+    List<Recipe> findAllWithoutSummary(@Param("dishId") Long dishId);
 }

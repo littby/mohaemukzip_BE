@@ -1,17 +1,18 @@
 package com.mohaemukzip.mohaemukzip_be.domain.recipe.controller;
 
 import com.mohaemukzip.mohaemukzip_be.domain.recipe.service.command.RecipeCommandService;
-import com.mohaemukzip.mohaemukzip_be.domain.recipe.service.command.RecipeEmbeddingService;
 import com.mohaemukzip.mohaemukzip_be.global.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import com.mohaemukzip.mohaemukzip_be.domain.recipe.dto.RecipeRequestDTO;
 import com.mohaemukzip.mohaemukzip_be.domain.recipe.dto.RecipeResponseDTO;
@@ -30,7 +31,6 @@ import com.mohaemukzip.mohaemukzip_be.domain.recipe.service.command.RecipeAdminF
 public class AdminRecipeController {
 
     private final RecipeAdminFacade recipeAdminFacade;
-    private final RecipeEmbeddingService recipeEmbeddingService;
     private final com.mohaemukzip.mohaemukzip_be.domain.recipe.service.command.AdminRecipeService adminRecipeService;
 
     public record BulkRecipeRequest(
@@ -40,11 +40,11 @@ public class AdminRecipeController {
 
     @PostMapping("/bulk")
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "레시피 대량 등록 (임베딩 포함)", description = "관리자 전용. 다수의 videoId를 입력받아 레시피를 순차 저장하고 임베딩을 일괄 생성합니다.")
+    @Operation(summary = "레시피 대량 등록", description = "관리자 전용. 다수의 videoId를 입력받아 레시피를 순차 저장합니다.")
     public ApiResponse<String> createRecipesInBulk(@Valid @RequestBody BulkRecipeRequest request) {
         log.info("[관리자] 대량 레시피 비동기 등록 요청 - 요리ID: {}, 건수: {}", request.dishId(), request.videoIds().size());
 
-        // 비동기 서비스 호출 (레시피 크롤링 -> 요약 -> 임베딩)
+        // 비동기 서비스 호출 (레시피 크롤링 -> 요약)
         adminRecipeService.processBulkRecipesAsync(request.dishId(), request.videoIds());
 
         return ApiResponse.onSuccess("레시피 대량 등록 작업이 백그라운드에서 시작되었습니다.");
@@ -70,14 +70,22 @@ public class AdminRecipeController {
         return ApiResponse.onSuccess(result);
     }
 
-    @PostMapping("/embedding")
+    @GetMapping("/missing-summary")
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(
-            summary = "레시피 임베딩 배치 실행 API",
-            description = "관리자 전용. DB에서 embedding이 null인 레시피를 모두 찾아 OpenAPI 서버로 임베딩 요청을 보내고 결과를 저장합니다. (비동기)"
-    )
-    public ApiResponse<String> generateEmbeddings() {
-        adminRecipeService.generateMissingEmbeddingsAsync();
-        return ApiResponse.onSuccess("레시피 임베딩 생성 백그라운드 작업이 시작되었습니다. 완료 시 알림이 전송됩니다.");
+    @Operation(summary = "요약 누락 레시피 조회", description = "관리자 전용. Summary(조리 스텝)가 생성되지 않은 레시피 목록을 조회합니다. dishId를 지정하면 해당 요리로만 좁혀서 조회합니다.")
+    public ApiResponse<List<RecipeResponseDTO.MissingSummaryItem>> getMissingSummaryRecipes(
+            @RequestParam(required = false) Long dishId
+    ) {
+        return ApiResponse.onSuccess(recipeAdminFacade.getRecipesWithoutSummary(dishId));
+    }
+
+    @PostMapping("/missing-summary/retry")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "요약 누락 레시피 재시도", description = "관리자 전용. Summary가 없는 레시피들을 찾아 요약 생성을 재시도합니다. dishId를 지정하면 해당 요리로만 좁혀서 재시도합니다.")
+    public ApiResponse<String> retryMissingSummaries(
+            @RequestParam(required = false) Long dishId
+    ) {
+        adminRecipeService.retryMissingSummariesAsync(dishId);
+        return ApiResponse.onSuccess("요약 누락 레시피 재시도 작업이 백그라운드에서 시작되었습니다.");
     }
 }

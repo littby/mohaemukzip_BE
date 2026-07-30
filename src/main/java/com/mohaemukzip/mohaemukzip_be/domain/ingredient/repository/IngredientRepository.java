@@ -20,6 +20,11 @@ public interface IngredientRepository extends JpaRepository<Ingredient, Long> {
     // 재료명으로 조회 (매칭용)
     List<Ingredient> findAllByNameIn(List<String> names);
 
+    // 챗봇 메시지에 재료명이 부분 문자열로 포함되는지 DB 레벨에서 매칭 (전체 조회 후 메모리 필터링 방지)
+    // 빈 문자열 이름이 있으면 LIKE '%%'가 전부 매칭되므로 공백 이름은 제외
+    @Query("SELECT i.id FROM Ingredient i WHERE TRIM(i.name) <> '' AND :message LIKE CONCAT('%', i.name, '%')")
+    List<Long> findIdsContainedInMessage(@Param("message") String message);
+
     @Query("""
 SELECT i FROM Ingredient i
 WHERE (:keyword IS NULL OR REPLACE(i.name, ' ', '') LIKE CONCAT('%', REPLACE(:keyword, ' ', ''), '%'))
