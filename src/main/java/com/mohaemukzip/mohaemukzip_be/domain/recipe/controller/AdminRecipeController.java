@@ -7,10 +7,12 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import com.mohaemukzip.mohaemukzip_be.domain.recipe.dto.RecipeRequestDTO;
 import com.mohaemukzip.mohaemukzip_be.domain.recipe.dto.RecipeResponseDTO;
@@ -66,5 +68,24 @@ public class AdminRecipeController {
     ) {
         var result = recipeAdminFacade.createSummary(recipeId);
         return ApiResponse.onSuccess(result);
+    }
+
+    @GetMapping("/missing-summary")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "요약 누락 레시피 조회", description = "관리자 전용. Summary(조리 스텝)가 생성되지 않은 레시피 목록을 조회합니다. dishId를 지정하면 해당 요리로만 좁혀서 조회합니다.")
+    public ApiResponse<List<RecipeResponseDTO.MissingSummaryItem>> getMissingSummaryRecipes(
+            @RequestParam(required = false) Long dishId
+    ) {
+        return ApiResponse.onSuccess(recipeAdminFacade.getRecipesWithoutSummary(dishId));
+    }
+
+    @PostMapping("/missing-summary/retry")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "요약 누락 레시피 재시도", description = "관리자 전용. Summary가 없는 레시피들을 찾아 요약 생성을 재시도합니다. dishId를 지정하면 해당 요리로만 좁혀서 재시도합니다.")
+    public ApiResponse<String> retryMissingSummaries(
+            @RequestParam(required = false) Long dishId
+    ) {
+        adminRecipeService.retryMissingSummariesAsync(dishId);
+        return ApiResponse.onSuccess("요약 누락 레시피 재시도 작업이 백그라운드에서 시작되었습니다.");
     }
 }

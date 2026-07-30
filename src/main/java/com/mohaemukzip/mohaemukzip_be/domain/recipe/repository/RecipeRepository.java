@@ -67,4 +67,11 @@ public interface RecipeRepository extends JpaRepository<Recipe, Long> {
 
     // 키워드 매칭 후보가 없을 때 폴백용 인기 레시피 상위 N개
     List<Recipe> findTop50ByOrderByViewsDesc();
+
+    // ===== 관리자용 요약(Summary) 누락 확인/재시도 메서드 =====
+
+    // Summary가 하나도 생성되지 않은(=요약 실패했거나 시도조차 안 된) 레시피 조회. dishId가 null이면 전체 대상.
+    @Query("SELECT r FROM Recipe r WHERE NOT EXISTS (SELECT 1 FROM Summary s WHERE s.recipe = r) " +
+            "AND (:dishId IS NULL OR r.dish.id = :dishId)")
+    List<Recipe> findAllWithoutSummary(@Param("dishId") Long dishId);
 }
