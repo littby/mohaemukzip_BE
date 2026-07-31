@@ -42,7 +42,9 @@ public class SecurityConfig {
             "/actuator/prometheus",
             "/auth/email/send",
             "/auth/email/verify",
-            "/api/diagnostic/trace"
+            "/api/diagnostic/trace",
+            "/auth/email/send/find-password",
+            "/auth/reset-password"
     };
 
     @Bean

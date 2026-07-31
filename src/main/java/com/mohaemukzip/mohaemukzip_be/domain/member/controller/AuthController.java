@@ -195,4 +195,13 @@ public class AuthController {
         AuthResponseDTO.VerifyAuthCodeResponse response = authCommandService.verifyAuthCode(request);
         return ApiResponse.onSuccess(response);
     }
+
+    @Operation(summary = "비밀번호 찾기 - 이메일 인증번호 발송")
+    @PostMapping("/email/send/find-password")
+    public ApiResponse<AuthResponseDTO.SendAuthCodeResponse> sendFindPasswordAuthCode(
+            @Valid @RequestBody AuthRequestDTO.SendFindPasswordAuthCodeRequest request) {
+
+        AuthResponseDTO.SendAuthCodeResponse response = authCommandService.sendFindPasswordAuthCode(request);
+        return ApiResponse.onSuccess(response);
+    }
 }
