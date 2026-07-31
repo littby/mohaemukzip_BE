@@ -13,8 +13,8 @@ import java.time.Duration;
 @Configuration
 public class RapidApiConfig {
 
-    // 시스템 환경변수 RAPIDAPI_KEY를 주입받습니다. 설정되지 않았다면 빈 문자열("")을 가집니다.
-    @Value("${RAPIDAPI_KEY:}")
+    // 시스템 환경변수 RAPID_API_KEY를 주입받습니다. 설정되지 않았다면 빈 문자열("")을 가집니다.
+    @Value("${RAPID_API_KEY:}")
     private String rapidApiKey;
 
     private static final String RAPIDAPI_BASE_URL = "https://youtube-transcript3.p.rapidapi.com";
