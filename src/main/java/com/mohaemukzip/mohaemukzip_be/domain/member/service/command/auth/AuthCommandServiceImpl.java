@@ -388,9 +388,15 @@ public class AuthCommandServiceImpl implements AuthCommandService {
     }
 
     public AuthResponseDTO.SendAuthCodeResponse sendFindPasswordAuthCode(AuthRequestDTO.SendFindPasswordAuthCodeRequest request) {
-        // 가입된 이메일이어야만 발송
-        if (!memberRepository.existsByEmail(request.email())) {
+        Member member = memberRepository.findByEmail(request.email())
+                .orElseThrow(() -> new BusinessException(ErrorStatus.MEMBER_NOT_FOUND_BY_EMAIL));
+
+        if (member.getLoginType() == LoginType.APPLE) {
             throw new BusinessException(ErrorStatus.MEMBER_NOT_FOUND_BY_EMAIL);
+        }
+
+        if (member.getLoginType() == LoginType.KAKAO) {
+            throw new BusinessException(ErrorStatus.KAKAO_ACCOUNT_EXISTS);
         }
 
         emailService.sendAuthCode(request.email());
