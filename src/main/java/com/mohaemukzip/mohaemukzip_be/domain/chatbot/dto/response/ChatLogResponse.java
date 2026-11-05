@@ -43,7 +43,7 @@ public class ChatLogResponse {
         @Schema(description = "로그 ID")
         private Long id;
 
-        @Schema(description = "회원 ID")
+        @Schema(description = "회원 ID (탈퇴 회원의 기록은 null)", nullable = true)
         private Long memberId;
 
         @Schema(description = "사용자 질문 원문")

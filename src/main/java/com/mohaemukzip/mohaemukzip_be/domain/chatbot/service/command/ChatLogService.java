@@ -8,7 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.HashSet;
 import java.util.List;
@@ -26,22 +26,30 @@ public class ChatLogService {
 
     private final ChatLogRepository chatLogRepository;
     private final MemberRepository memberRepository;
+    private final TransactionTemplate transactionTemplate;
 
     @Async
-    @Transactional
     public void saveChatLog(Long memberId, String userMessage,
                              String botTitle, String botMessage, List<Long> recommendedRecipeIds) {
         try {
-            Member member = memberRepository.getReferenceById(memberId);
-            ChatLog chatLog = ChatLog.builder()
-                    .member(member)
-                    .userMessage(userMessage)
-                    .botTitle(botTitle)
-                    .botMessage(botMessage)
-                    .recommendedRecipeIds(recommendedRecipeIds != null ? new HashSet<>(recommendedRecipeIds) : Set.of())
-                    .build();
-            chatLogRepository.save(chatLog);
+            // 탈퇴와 같은 회원 잠금을 사용한다. 외부 AI 호출은 이 트랜잭션에 포함하지 않는다.
+            transactionTemplate.executeWithoutResult(status -> {
+                Member member = memberRepository.findByIdForUpdate(memberId).orElse(null);
+                if (member == null || member.isInactive()) {
+                    return;
+                }
+
+                ChatLog chatLog = ChatLog.builder()
+                        .member(member)
+                        .userMessage(userMessage)
+                        .botTitle(botTitle)
+                        .botMessage(botMessage)
+                        .recommendedRecipeIds(recommendedRecipeIds != null ? new HashSet<>(recommendedRecipeIds) : Set.of())
+                        .build();
+                chatLogRepository.save(chatLog);
+            });
         } catch (Exception e) {
+            // execute가 커밋까지 완료한 뒤 반환하므로 커밋 시점의 실패도 여기서 처리한다.
             log.error("[챗봇 로그] 저장 실패 - memberId: {}", memberId, e);
         }
     }

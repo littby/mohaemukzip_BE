@@ -5,7 +5,6 @@ import com.mohaemukzip.mohaemukzip_be.domain.member.entity.enums.LoginType;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -24,7 +23,4 @@ public interface MemberRepository extends JpaRepository<Member,Long> {
     @Query("select m from Member m where m.id = :memberId")
     Optional<Member> findByIdForUpdate(@Param("memberId") Long memberId);
 
-    @Modifying
-    @Query(value = "DELETE FROM member_cook_histories WHERE member_id = :memberId", nativeQuery = true)
-    void deleteCookHistoriesByMemberId(@Param("memberId") Long memberId);
 }

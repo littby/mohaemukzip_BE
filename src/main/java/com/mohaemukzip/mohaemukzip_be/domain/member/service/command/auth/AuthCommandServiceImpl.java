@@ -1,5 +1,6 @@
 package com.mohaemukzip.mohaemukzip_be.domain.member.service.command.auth;
 
+import com.mohaemukzip.mohaemukzip_be.domain.chatbot.repository.ChatLogRepository;
 import com.mohaemukzip.mohaemukzip_be.domain.ingredient.repository.IngredientRequestRepository;
 import com.mohaemukzip.mohaemukzip_be.domain.ingredient.repository.MemberFavoriteRepository;
 import com.mohaemukzip.mohaemukzip_be.domain.ingredient.repository.MemberIngredientRepository;
@@ -33,9 +34,12 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import java.util.UUID;
+import java.util.List;
 
 
 import java.time.Duration;
@@ -66,6 +70,7 @@ public class AuthCommandServiceImpl implements AuthCommandService {
     private final MemberRecipeRepository memberRecipeRepository;
     private final CookingRecordRepository cookingRecordRepository;
     private final IngredientRequestRepository ingredientRequestRepository;
+    private final ChatLogRepository chatLogRepository;
 
     private static final String KAKAO_USER_INFO_URI = "https://kapi.kakao.com/v2/user/me";
     private static final String REFRESH_TOKEN_PREFIX = "RT:";
@@ -285,7 +290,7 @@ public class AuthCommandServiceImpl implements AuthCommandService {
 
     @Transactional
     public AuthResponseDTO.WithdrawalResponse withdrawal(Long memberId) {
-        Member member = memberRepository.findById(memberId)
+        Member member = memberRepository.findByIdForUpdate(memberId)
                 .orElseThrow(() -> new BusinessException(ErrorStatus.MEMBER_NOT_FOUND));
 
         if (member.isInactive()) {
@@ -293,7 +298,7 @@ public class AuthCommandServiceImpl implements AuthCommandService {
         }
 
 
-        // 연관 데이터 완전 삭제 (외래키 제약 없는 순서라 순서 무관)
+        // 개인 활동 데이터는 삭제하고, 분석용 대화 기록은 회원 연결만 해제한다.
         memberTermRepository.deleteAllByMember(member);
         memberMissionRepository.deleteAllByMember_Id(memberId);
         memberFavoriteRepository.deleteAllByMember_Id(memberId);
@@ -301,19 +306,33 @@ public class AuthCommandServiceImpl implements AuthCommandService {
         memberRecipeRepository.deleteAllByMember_Id(memberId);
         cookingRecordRepository.deleteAllByMember_Id(memberId);
         ingredientRequestRepository.deleteAllByMember_Id(memberId);
-        memberRepository.deleteCookHistoriesByMemberId(memberId);
-
-
-        // Redis에서 Refresh Token 삭제
-        redisTemplate.delete(REFRESH_TOKEN_PREFIX + memberId);
+        chatLogRepository.detachMember(memberId);
 
         // 회원 자체 삭제
         memberRepository.delete(member);
+        memberRepository.flush();
+        deleteWithdrawalCachesAfterCommit(memberId);
 
         eventPublisher.publishEvent(
                 new MemberWithdrawnEvent(memberId, member.getNickname(), member.getLoginType()));
 
         return AuthConverter.toWithdrawalResponseDTO();
+    }
+
+    private void deleteWithdrawalCachesAfterCommit(Long memberId) {
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                try {
+                    redisTemplate.delete(List.of(
+                            REFRESH_TOKEN_PREFIX + memberId,
+                            "chat:room:" + memberId + ":messages"));
+                } catch (Exception e) {
+                    // 회원 삭제는 이미 커밋됐다. 실패 응답으로 되돌리지 않고 운영 확인 대상으로 남긴다.
+                    log.error("[회원 탈퇴] DB 삭제 완료 후 Redis 정리 실패 - memberId: {}", memberId, e);
+                }
+            }
+        });
     }
 
     // 비밀번호 변경

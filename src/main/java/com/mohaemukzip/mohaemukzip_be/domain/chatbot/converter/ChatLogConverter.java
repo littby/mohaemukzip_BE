@@ -9,7 +9,7 @@ public class ChatLogConverter {
     public static ChatLogResponse.Detail toDetail(ChatLog chatLog) {
         return ChatLogResponse.Detail.builder()
                 .id(chatLog.getId())
-                .memberId(chatLog.getMember().getId())
+                .memberId(chatLog.getMember() == null ? null : chatLog.getMember().getId())
                 .userMessage(chatLog.getUserMessage())
                 .botTitle(chatLog.getBotTitle())
                 .botMessage(chatLog.getBotMessage())
