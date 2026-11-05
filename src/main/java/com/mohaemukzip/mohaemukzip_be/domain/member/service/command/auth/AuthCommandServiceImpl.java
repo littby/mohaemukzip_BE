@@ -32,14 +32,16 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import java.util.UUID;
 
 
 import java.time.Duration;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 
 @Slf4j
 @Service
@@ -53,6 +55,7 @@ public class AuthCommandServiceImpl implements AuthCommandService {
     private final WebClient webClient;
     private final TokenBlacklistService tokenBlacklistService;
     private final ApplePublicKeyService applePublicKeyService;
+    private final SocialMemberCreator socialMemberCreator;
     private final EmailService emailService;
     private final ApplicationEventPublisher eventPublisher;
 
@@ -107,67 +110,60 @@ public class AuthCommandServiceImpl implements AuthCommandService {
         return generateAndSaveTokens(member, false);
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public AuthResponseDTO.GetUserDTO kakaoLogin(AuthRequestDTO.KakaoLoginRequest kakaoLoginRequest){
         AuthResponseDTO.GetKakaoUserInfoDTO kakaoUserInfo = getKakaoUserInfo(kakaoLoginRequest.kakaoAccessToken());
-
         String kakaoId = kakaoUserInfo.getId();
-        String nickname = extractNickname(kakaoUserInfo);
 
-        AtomicBoolean isNewMember = new AtomicBoolean(false);
+        SocialMemberResult result = findOrCreateSocialMember(LoginType.KAKAO, kakaoId,
+                () -> buildKakaoMember(kakaoId, extractNickname(kakaoUserInfo),
+                        kakaoUserInfo.getKakaoAccount().getEmail()));
 
-
-        Member member;
-        try {
-            member = memberRepository.findByLoginTypeAndOauthId(LoginType.KAKAO, kakaoId)
-                    .orElseGet(() -> {
-                        isNewMember.set(true);
-                        return createKakaoMember(kakaoId, nickname, kakaoUserInfo.getKakaoAccount().getEmail());
-                    });
-        } catch (DataIntegrityViolationException e) {
-            member = memberRepository.findByLoginTypeAndOauthId(LoginType.KAKAO, kakaoId)
-                    .orElseThrow(() -> new BusinessException(ErrorStatus.KAKAO_API_ERROR));
-        }
-
-        if (member.isInactive()) {
-            member.reactivate();
-        }
-
-        if (isNewMember.get()) {
-            publishSignedUpEvent(member);
-        }
-
-        return generateAndSaveTokens(member, isNewMember.get());
+        return completeSocialLogin(result);
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public AuthResponseDTO.GetUserDTO appleLogin(AuthRequestDTO.AppleLoginRequest appleLoginRequest) {
-
         String appleId = applePublicKeyService.extractSubFromIdentityToken(appleLoginRequest.identityToken());
-        AtomicBoolean isNewMember = new AtomicBoolean(false);
 
-        Member member;
-        try {
-            member = memberRepository.findByLoginTypeAndOauthId(LoginType.APPLE, appleId)
-                    .orElseGet(() -> {
-                        isNewMember.set(true);
-                        return createAppleMember(appleId);
-                    });
-        } catch (DataIntegrityViolationException e) {
+        SocialMemberResult result = findOrCreateSocialMember(LoginType.APPLE, appleId,
+                () -> buildAppleMember(appleId));
 
-            member = memberRepository.findByLoginTypeAndOauthId(LoginType.APPLE, appleId)
-                    .orElseThrow(() -> new BusinessException(ErrorStatus.KAKAO_API_ERROR));
+        return completeSocialLogin(result);
+    }
+
+    private record SocialMemberResult(Member member, boolean isNewMember) {}
+
+    // 동시 로그인으로 다른 요청이 먼저 가입시킨 경우, 재조회에서 그 회원이 보이도록 READ_COMMITTED에서 호출한다.
+    private SocialMemberResult findOrCreateSocialMember(LoginType loginType, String oauthId,
+                                                        Supplier<Member> newMember) {
+        Optional<Member> existing = memberRepository.findByLoginTypeAndOauthId(loginType, oauthId);
+        if (existing.isPresent()) {
+            return new SocialMemberResult(existing.get(), false);
         }
+
+        try {
+            return new SocialMemberResult(socialMemberCreator.create(newMember.get()), true);
+        } catch (DataIntegrityViolationException e) {
+            log.warn("[소셜 로그인] 동시 가입 충돌 - loginType: {}, 기존 회원 재조회", loginType);
+            Member member = memberRepository.findByLoginTypeAndOauthId(loginType, oauthId)
+                    .orElseThrow(() -> new BusinessException(ErrorStatus.KAKAO_API_ERROR));
+            return new SocialMemberResult(member, false);
+        }
+    }
+
+    private AuthResponseDTO.GetUserDTO completeSocialLogin(SocialMemberResult result) {
+        Member member = result.member();
 
         if (member.isInactive()) {
             member.reactivate();
         }
 
-        if (isNewMember.get()) {
+        if (result.isNewMember()) {
             publishSignedUpEvent(member);
         }
 
-        return generateAndSaveTokens(member, isNewMember.get());
+        return generateAndSaveTokens(member, result.isNewMember());
     }
 
     private void publishSignedUpEvent(Member member) {
@@ -175,15 +171,14 @@ public class AuthCommandServiceImpl implements AuthCommandService {
                 new MemberSignedUpEvent(member.getId(), member.getNickname(), member.getLoginType()));
     }
 
-    private Member createAppleMember(String appleId) {
-        Member newMember = Member.builder()
+    private Member buildAppleMember(String appleId) {
+        return Member.builder()
                 .oauthId(appleId)
                 .nickname("애플 사용자_" + (appleId.length() >= 6 ? appleId.substring(0, 6) : appleId))
                 .loginType(LoginType.APPLE)
                 .role(Role.ROLE_USER)
                 .score(0)
                 .build();
-        return memberRepository.save(newMember);
     }
 
     private String extractNickname(AuthResponseDTO.GetKakaoUserInfoDTO kakaoUserInfo) {
@@ -196,8 +191,8 @@ public class AuthCommandServiceImpl implements AuthCommandService {
         return "카카오 사용자_" + kakaoUserInfo.getId();
     }
 
-    private Member createKakaoMember(String kakaoId, String nickname, String email) {
-        Member newMember = Member.builder()
+    private Member buildKakaoMember(String kakaoId, String nickname, String email) {
+        return Member.builder()
                 .oauthId(kakaoId)
                 .nickname(nickname)
                 .email(email)
@@ -205,8 +200,6 @@ public class AuthCommandServiceImpl implements AuthCommandService {
                 .role(Role.ROLE_USER)
                 .score(0)
                 .build();
-
-        return memberRepository.save(newMember);
     }
 
     private AuthResponseDTO.GetUserDTO generateAndSaveTokens(Member member, boolean isNewUser) {
