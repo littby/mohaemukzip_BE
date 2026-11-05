@@ -27,7 +27,8 @@ public class ChatLog extends BaseEntity {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "member_id", nullable = false)
+    // 탈퇴 회원과의 연결은 해제하고 분석용 대화 기록은 보관한다.
+    @JoinColumn(name = "member_id", nullable = true)
     private Member member;
 
     @Column(name = "user_message", columnDefinition = "TEXT", nullable = false)
